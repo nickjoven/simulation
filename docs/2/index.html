@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>whispering gallery · jₗ(kr)·sinℓ(θ')</title>
+<title>whispering gallery · jₗ(kr)·Y_ℓ±ℓ</title>
 <style>
   html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
   #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.85}
@@ -19,31 +19,27 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
 
-// ψ = jₗ(kr) · sinℓ(θ') · f(ℓφ', ωt)
-// (θ',φ') in rotated frame with pole â = norm(mix(âA, âB, s)).
+// traveling: ψ = jₗ(kr)·sinℓ(θ')·cos(ℓφ'−ωt)
+//          = Y_ℓ^ℓ(p̂)·cos(ωt) + Y_ℓ^{-ℓ}(p̂)·sin(ωt)   (scaled by jₗ and norm)
+// standing: ψ = Y_ℓ^ℓ(p̂) · cos(ωt)
+// Bake volC = jₗ·Y_ℓ^ℓ , volS = jₗ·Y_ℓ^{-ℓ}  in mode frame.
+// Rt : world → mode frame.
 
 const EXTRA = `
-uniform vec3  axA;
-uniform vec3  axB;
-uniform float s;
+uniform sampler3D volC;
+uniform sampler3D volS;
+uniform mat3  Rt;
 uniform int   travel;
 `
 const PSI = `
-float r = length(p);
-vec3 nh = p / max(r, 1e-5);
-vec3 a = normalize(mix(axA, axB, s));
-vec3 up = abs(a.z) < 0.9 ? vec3(0., 0., 1.) : vec3(1., 0., 0.);
-vec3 e1 = normalize(cross(a, up));
-vec3 e2 = cross(a, e1);
-float ct = dot(nh, a);
-float st = sqrt(max(1. - ct*ct, 0.));
-float phi = atan(dot(nh, e2), dot(nh, e1));
-float ang = (travel == 1)
-  ? cos(float(L)*phi - w*t)
-  : cos(float(L)*phi) * cos(w*t);
-psi = jL(L, k*r) * pow(st, float(L)) * ang;
+vec3 pm = Rt * p;
+float a = V(volC, pm);
+float b = V(volS, pm);
+psi = (travel == 1)
+  ? (a * cos(w*t) + b * sin(w*t))
+  : (a * cos(w*t));
 `
 const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
 
@@ -59,15 +55,16 @@ addEventListener('resize', ()=>{
   rnd.setSize(innerWidth, innerHeight)
 })
 
-// ℓ up to 5 via ALPHA table.
 const u = {
-  t:{value:0}, w:{value:1.6}, gain:{value:40}, STEPS:{value:128},
-  L:{value:5}, M:{value:5}, k:{value:ALPHA[5][0]},
-  axA:{value:new THREE.Vector3(0,0,1)},
-  axB:{value:new THREE.Vector3(1,0,0)},
-  s:{value:0}, travel:{value:1},
+  t:{value:0}, w:{value:1.6}, gain:{value:40}, STEPS:{value:96},
+  volC:{value:null}, volS:{value:null},
+  Rt:{value: new THREE.Matrix3()},
+  travel:{value:1},
 }
-const mat = new THREE.ShaderMaterial({vertexShader:VS, fragmentShader:fs, uniforms:u})
+const mat = new THREE.ShaderMaterial({
+  vertexShader: VS, fragmentShader: fs, uniforms: u,
+  glslVersion: THREE.GLSL3,
+})
 const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
 scene.add(sph)
 const ctl = new OrbitControls(cam, rnd.domElement)
@@ -76,45 +73,61 @@ ctl.autoRotate = true
 ctl.autoRotateSpeed = 0.4
 
 const S = {
-  ℓ: 5, n: 1, ω: 1.6, gain: 40, travel: true, STEPS: 128,
+  ℓ: 5, n: 1, ω: 1.6, gain: 40, travel: true, STEPS: 96, N: 64,
   αA: 0, βA: 0, αB: Math.PI/2, βB: 0,
   auto: true, Δt: 3.0, s: 0,
   rotate: true,
 }
+const axA = new THREE.Vector3(), axB = new THREE.Vector3()
 const setAx = (α, β, target)=>{
   target.set(Math.sin(α)*Math.cos(β), Math.sin(α)*Math.sin(β), Math.cos(α))
 }
+
+// bake both Yₗ^ℓ and Yₗ^{-ℓ} for the current (ℓ, n).
+const rebake = ()=>{
+  if(u.volC.value) u.volC.value.dispose()
+  if(u.volS.value) u.volS.value.dispose()
+  const k = ALPHA[S.ℓ][S.n-1]
+  u.volC.value = bakeMode(S.ℓ,  S.ℓ, k, S.N)
+  u.volS.value = bakeMode(S.ℓ, -S.ℓ, k, S.N)
+}
+rebake()
+
 const sync = ()=>{
-  u.L.value = S.ℓ
-  u.k.value = ALPHA[S.ℓ][S.n-1]
-  u.w.value = S.ω
-  u.gain.value = S.gain
-  u.travel.value = S.travel ? 1 : 0
-  u.STEPS.value = S.STEPS
-  setAx(S.αA, S.βA, u.axA.value)
-  setAx(S.αB, S.βB, u.axB.value)
+  u.w.value = S.ω; u.gain.value = S.gain
+  u.travel.value = S.travel ? 1 : 0; u.STEPS.value = S.STEPS
+  setAx(S.αA, S.βA, axA); setAx(S.αB, S.βB, axB)
 }
 sync()
 
 const gui = new GUI({title:'whispering gallery · 3D'})
-gui.add(S,'ℓ', 2, 5, 1).onChange(sync)
-gui.add(S,'n', 1, 3, 1).onChange(sync)
+gui.add(S,'ℓ', 2, 5, 1).onChange(()=>{ rebake(); sync() })
+gui.add(S,'n', 1, 3, 1).onChange(()=>{ rebake(); sync() })
 gui.add(S,'ω', 0, 6, 0.05).onChange(sync)
 gui.add(S,'travel').onChange(sync)
 gui.add(S,'gain', 1, 200, 1).onChange(sync)
 gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
+gui.add(S,'N', 32, 128, 16).name('bake N').onChange(()=>{ rebake(); sync() })
 const a = gui.addFolder('â A')
 a.add(S,'αA', 0, Math.PI, 0.01).onChange(sync)
 a.add(S,'βA', 0, 2*Math.PI, 0.01).onChange(sync)
 const b = gui.addFolder('â B')
 b.add(S,'αB', 0, Math.PI, 0.01).onChange(sync)
 b.add(S,'βB', 0, 2*Math.PI, 0.01).onChange(sync)
-gui.add(S,'s', 0, 1, 0.001).listen().onChange(v=>u.s.value=v)
+gui.add(S,'s', 0, 1, 0.001).listen().onChange(v=>{ S.s=v })
 gui.add(S,'auto').name('auto s(t)')
 gui.add(S,'Δt', 0.2, 10, 0.1).name('Δt / s')
 gui.add(S,'rotate').onChange(v=>ctl.autoRotate=v)
 
 const hud = document.getElementById('hud')
+
+// R : rotates standard +ẑ to ax. Its transpose = world→mode.
+const tmpAx = new THREE.Vector3()
+const zHat = new THREE.Vector3(0,0,1)
+const qq = new THREE.Quaternion()
+const M4 = new THREE.Matrix4()
+const Rm = new THREE.Matrix3()
+
 let last = performance.now(), ph = 0
 function loop(){
   const now = performance.now()
@@ -124,13 +137,19 @@ function loop(){
     ph += dt / Math.max(S.Δt, 0.05)
     const p = ph % 2
     S.s = p < 1 ? p : 2 - p
-    u.s.value = S.s
   }
+  tmpAx.copy(axA).lerp(axB, S.s).normalize()
+  qq.setFromUnitVectors(zHat, tmpAx)
+  M4.makeRotationFromQuaternion(qq)
+  Rm.setFromMatrix4(M4)          // rotates z → ax (mode → world)
+  u.Rt.value.copy(Rm).transpose()  // world → mode
+
   ctl.update()
   rnd.render(scene, cam)
   hud.textContent =
-    `ℓ=${S.ℓ}  n=${S.n}  k=${u.k.value.toFixed(3)}  ω=${S.ω.toFixed(2)}  ${S.travel?'→':'↔'}\n`+
-    `s=${S.s.toFixed(3)}  t=${u.t.value.toFixed(1)}  STEPS=${S.STEPS}`
+    `ℓ=${S.ℓ} n=${S.n} k=${ALPHA[S.ℓ][S.n-1].toFixed(3)} ω=${S.ω.toFixed(2)} ${S.travel?'→':'↔'}\n`+
+    `â=(${tmpAx.x.toFixed(2)},${tmpAx.y.toFixed(2)},${tmpAx.z.toFixed(2)})  s=${S.s.toFixed(3)}\n`+
+    `STEPS=${S.STEPS}  bake=${S.N}³`
   requestAnimationFrame(loop)
 }
 loop()

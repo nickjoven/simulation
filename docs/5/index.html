@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>∇U tweezing · 3D</title>
+<title>∇U tweezing · 3D · click-spawn</title>
 <style>
   html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
   #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.9}
@@ -19,20 +19,19 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, Y, jL } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, U, Y, jL } from '../common.js'
 
-// U(p) = [jₗ(kr)·Yₗᵐ(Rᵀ p̂)]²   (time-averaged potential)
-// ṗ = −σγ∇U(p) ,  p ∈ B³  (clamped at r = 1)
-// σ = +1 : nodes (U = 0) attract ;  σ = −1 : antinodes attract
+// ψ ∝ V(vol, Rᵀp) · cos(ωt)      (ω=0 for pure potential visual)
+// particles: ṗ = −σγ∇U(p),  U(p) = [jₗ(kr)·Yₗᵐ(Rᵀp̂)]²
+// click: raycast → ray-sphere chord → N_click particles seeded uniformly on chord.
 
 const EXTRA = `
-uniform mat3 Rt;   // Rᵀ : world → mode frame
+uniform sampler3D vol;
+uniform mat3 Rt;
 `
 const PSI = `
-float r = length(p);
-vec3 nh = p / max(r, 1e-5);
-vec3 nf = Rt * nh;
-psi = jL(L, k*r) * Y(L, M, nf);
+vec3 pm = Rt * p;
+psi = V(vol, pm);
 `
 const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
 
@@ -49,19 +48,18 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
-  t:{value:0}, w:{value:0}, gain:{value:18}, STEPS:{value:128},
-  L:{value:3}, M:{value:2}, k:{value:ALPHA[3][0]},
+  t:{value:0}, w:{value:0}, gain:{value:18}, STEPS:{value:96},
+  vol:{value: null},
   Rt:{value: new THREE.Matrix3()},
 }
 const mat = new THREE.ShaderMaterial({
-  vertexShader: VS,
-  fragmentShader: fs,
-  uniforms: u,
+  vertexShader: VS, fragmentShader: fs, uniforms: u,
+  glslVersion: THREE.GLSL3,
 })
 const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
 scene.add(sph)
 
-// particles in B³
+// particles
 const N = 256
 const pos = new Float32Array(N * 3)
 function seed(){
@@ -87,36 +85,39 @@ ctl.enableDamping = true
 const S = {
   L: 3, M: 2, n: 1,
   γ: 0.4, σ: +1,
-  axX: 0, axY: 0, axZ: 1, ωrot: 0.3, rotAxis: true,
-  gain: 18, STEPS: 128,
+  ωrot: 0.3, rotAxis: true,
+  gain: 18, STEPS: 96, N: 64,
+  clickN: 32,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
 }
+function rebake(){
+  if(u.vol.value) u.vol.value.dispose()
+  u.vol.value = bakeMode(S.L, S.M, ALPHA[S.L][S.n-1], S.N)
+}
 const sync = ()=>{
-  u.L.value = S.L; u.M.value = S.M
-  u.k.value = ALPHA[S.L][S.n-1]
   u.gain.value = S.gain; u.STEPS.value = S.STEPS
 }
-sync()
+rebake(); sync()
 
-// P : named configurations. null = custom (don't overwrite).
+// presets
 const P = {
   'custom':             null,
-  'Y₃² node lace':      { L:3, M:2, n:1, γ:0.30, σ:+1, ωrot:0,    rotAxis:true,  gain:120, STEPS:128, reseed:true },
-  'Y₅⁵ eq carry':       { L:5, M:5, n:1, γ:0.50, σ:-1, ωrot:0.50, rotAxis:true,  gain:200, STEPS:128, reseed:true },
-  'Y₃⁰ shell pick':     { L:3, M:0, n:2, γ:0.40, σ:+1, ωrot:0,    rotAxis:false, gain:150, STEPS:160, reseed:true },
-  'Y₄³ lattice adv':    { L:4, M:3, n:2, γ:1.00, σ:-1, ωrot:1.00, rotAxis:true,  gain:180, STEPS:160, reseed:true },
-  'Y₅³ 3-fold twist':   { L:5, M:3, n:1, γ:0.60, σ:+1, ωrot:0.30, rotAxis:true,  gain:160, STEPS:128, reseed:true },
-  'Y₂¹ dipole orbit':   { L:2, M:1, n:2, γ:0.40, σ:-1, ωrot:0.80, rotAxis:true,  gain:120, STEPS:128, reseed:true },
+  'Y₃² node lace':      { L:3, M:2, n:1, γ:0.30, σ:+1, ωrot:0,    rotAxis:true,  gain:120, STEPS:96,  reseed:true },
+  'Y₅⁵ eq carry':       { L:5, M:5, n:1, γ:0.50, σ:-1, ωrot:0.50, rotAxis:true,  gain:200, STEPS:96,  reseed:true },
+  'Y₃⁰ shell pick':     { L:3, M:0, n:2, γ:0.40, σ:+1, ωrot:0,    rotAxis:false, gain:150, STEPS:128, reseed:true },
+  'Y₄³ lattice adv':    { L:4, M:3, n:2, γ:1.00, σ:-1, ωrot:1.00, rotAxis:true,  gain:180, STEPS:128, reseed:true },
+  'Y₅³ 3-fold twist':   { L:5, M:3, n:1, γ:0.60, σ:+1, ωrot:0.30, rotAxis:true,  gain:160, STEPS:96,  reseed:true },
+  'Y₂¹ dipole orbit':   { L:2, M:1, n:2, γ:0.40, σ:-1, ωrot:0.80, rotAxis:true,  gain:120, STEPS:96,  reseed:true },
   'Y₄² slow chaos':     { L:4, M:2, n:2, γ:5.00, σ:+1, ωrot:-0.06,rotAxis:true,  gain:200, STEPS:32,  reseed:false },
-  'Y₅⁰ axial stack':    { L:5, M:0, n:3, γ:0.30, σ:+1, ωrot:0,    rotAxis:false, gain:140, STEPS:160, reseed:true },
-  'Y₁⁰ breathing':      { L:1, M:0, n:3, γ:0.30, σ:-1, ωrot:0,    rotAxis:false, gain:100, STEPS:128, reseed:true },
+  'Y₅⁰ axial stack':    { L:5, M:0, n:3, γ:0.30, σ:+1, ωrot:0,    rotAxis:false, gain:140, STEPS:128, reseed:true },
+  'Y₁⁰ breathing':      { L:1, M:0, n:3, γ:0.30, σ:-1, ωrot:0,    rotAxis:false, gain:100, STEPS:96,  reseed:true },
 }
 const applyP = (name)=>{
   const p = P[name]; if(!p) return
   Object.assign(S, { L:p.L, M:p.M, n:p.n, γ:p.γ, σ:p.σ, ωrot:p.ωrot, rotAxis:p.rotAxis, gain:p.gain, STEPS:p.STEPS })
   lmCtl.setValue(`${S.L},${S.M}`)
   gui.controllersRecursive().forEach(c => c.updateDisplay())
-  sync()
+  rebake(); sync()
   if(p.reseed){ seed(); geom.attributes.position.needsUpdate = true }
 }
 
@@ -125,18 +126,48 @@ for(let L = 0; L <= 5; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
 const gui = new GUI({title:'∇U tweezing · 3D'})
 gui.add({preset:'custom'}, 'preset', Object.keys(P)).name('preset').onChange(applyP)
 const lmCtl = gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
-  const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; sync()
+  const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; rebake()
 })
-gui.add(S,'n', 1, 3, 1).onChange(sync).name('n radial')
+gui.add(S,'n', 1, 3, 1).onChange(rebake).name('n radial')
 gui.add(S,'γ', 0, 5, 0.01).name('γ (step)')
 gui.add(S,'σ', {'+ node':1, '− antinode':-1}).name('σ').onChange(v=>S.σ=+v)
 gui.add(S,'ωrot', -2, 2, 0.01).name('ω_rot')
 gui.add(S,'rotAxis').name('R(t) on')
 gui.add(S,'gain', 0.5, 200, 0.5).onChange(sync)
 gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
+gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
+gui.add(S,'clickN', 4, 128, 1).name('click · N')
 gui.add(S,'reseed').name('↻ seed')
 
 const hud = document.getElementById('hud')
+
+// click → chord seed
+const ray = new THREE.Raycaster()
+const pointer = new THREE.Vector2()
+let downX = 0, downY = 0, spawnCursor = 0
+rnd.domElement.addEventListener('pointerdown', e=>{ downX = e.clientX; downY = e.clientY })
+rnd.domElement.addEventListener('pointerup', e=>{
+  const dx = e.clientX - downX, dy = e.clientY - downY
+  if(dx*dx + dy*dy > 16) return              // drag → skip
+  const rect = rnd.domElement.getBoundingClientRect()
+  pointer.x = ((e.clientX - rect.left) / rect.width) * 2 - 1
+  pointer.y = -((e.clientY - rect.top) / rect.height) * 2 + 1
+  ray.setFromCamera(pointer, cam)
+  const o = ray.ray.origin, d = ray.ray.direction
+  const b = o.dot(d), c = o.dot(o) - 1, disc = b*b - c
+  if(disc < 0) return
+  const sq = Math.sqrt(disc), t0 = -b - sq, t1 = -b + sq
+  const arr = geom.attributes.position.array
+  for(let i = 0; i < S.clickN; i++){
+    const tv = t0 + Math.random() * (t1 - t0)
+    const idx = (spawnCursor + i) % N
+    arr[3*idx+0] = o.x + d.x * tv
+    arr[3*idx+1] = o.y + d.y * tv
+    arr[3*idx+2] = o.z + d.z * tv
+  }
+  spawnCursor = (spawnCursor + S.clickN) % N
+  geom.attributes.position.needsUpdate = true
+})
 
 // scratch
 const tmpP = new THREE.Vector3()
@@ -146,16 +177,10 @@ const q = new THREE.Quaternion()
 const R4 = new THREE.Matrix4()
 const Rm = new THREE.Matrix3()
 const RmT = new THREE.Matrix3()
+const zHat = new THREE.Vector3(0,0,1)
+const axVec = new THREE.Vector3(0,0,1)
 
 const H = 1e-3
-function U(L, M, k, x, y, z){
-  const r = Math.hypot(x, y, z)
-  if(r < 1e-5) return 0
-  const yv = Y(L, M, x/r, y/r, z/r)
-  const bv = jL(L, k*r)
-  const v = bv * yv
-  return v*v
-}
 function gradU(L, M, k, p, out){
   const U0 = U(L,M,k, p.x, p.y, p.z)
   const Ux = U(L,M,k, p.x+H, p.y,   p.z)
@@ -170,23 +195,20 @@ function loop(){
   const dt = Math.min(0.05, (now - last) * 1e-3); last = now
   t += dt
 
-  // R(t)
-  tmpP.set(S.axX, S.axY, S.axZ); if(tmpP.lengthSq() < 1e-6) tmpP.set(0,0,1)
-  tmpP.normalize()
-  q.setFromAxisAngle(tmpP, S.rotAxis ? S.ωrot * t : 0)
+  axVec.set(0, 0, 1)                               // default pole; can be extended to a click-set axis
+  q.setFromAxisAngle(axVec, S.rotAxis ? S.ωrot * t : 0)
   R4.makeRotationFromQuaternion(q)
   Rm.setFromMatrix4(R4)
   RmT.copy(Rm).transpose()
   u.Rt.value.copy(RmT)
 
   const arr = geom.attributes.position.array
-  const k = u.k.value
+  const k = ALPHA[S.L][S.n-1]
   for(let i = 0; i < N; i++){
     tmpP.set(arr[3*i+0], arr[3*i+1], arr[3*i+2])
-    // to mode frame
     tmpN.copy(tmpP).applyMatrix3(RmT)
     gradU(S.L, S.M, k, tmpN, tmpG)
-    tmpG.applyMatrix3(Rm)  // back to world frame
+    tmpG.applyMatrix3(Rm)
     tmpP.addScaledVector(tmpG, -S.σ * S.γ * dt)
     const r = tmpP.length()
     if(r > 1) tmpP.multiplyScalar(1/r)
@@ -197,9 +219,9 @@ function loop(){
   ctl.update()
   rnd.render(scene, cam)
   hud.textContent =
-    `(ℓ,m,n) = (${S.L}, ${S.M}, ${S.n})   k = ${u.k.value.toFixed(3)}\n`+
-    `σ = ${S.σ>0?'+node':'−antinode'}   γ = ${S.γ.toFixed(2)}\n`+
-    `ω_rot = ${S.ωrot.toFixed(2)}   t = ${t.toFixed(1)}   N = ${N}`
+    `(ℓ,m,n) = (${S.L}, ${S.M}, ${S.n})   k = ${k.toFixed(3)}   bake=${S.N}³\n`+
+    `σ = ${S.σ>0?'+node':'−antinode'}   γ = ${S.γ.toFixed(2)}   click·N = ${S.clickN}\n`+
+    `ω_rot = ${S.ωrot.toFixed(2)}   t = ${t.toFixed(1)}   N = ${N}   STEPS = ${S.STEPS}`
   requestAnimationFrame(loop)
 }
 loop()

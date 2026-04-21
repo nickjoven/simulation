@@ -1,6 +1,8 @@
 // shared GLSL + JS for volume ray-marching.
 // ψ(r,θ,φ,t) = jₗ(kr) · Yₗᵐ(θ,φ) · Φ(t),  k = α_{ℓ,n} ⇒ j_ℓ(k) = 0.
 
+import * as THREE from 'three'
+
 // α_{ℓ,n} : n-th positive zero of j_ℓ    (ℓ=0..5, n=1..3)
 export const ALPHA = [
   [Math.PI,      2*Math.PI,   3*Math.PI],
@@ -11,93 +13,25 @@ export const ALPHA = [
   [9.355812112, 12.966530172,16.354710328],
 ]
 
-// vertex: world-space backface of a box enclosing the sphere
+// GLSL ES 3.00  (three.js: glslVersion = THREE.GLSL3)
+
 export const VS = `
-varying vec3 vW;
+out vec3 vW;
 void main(){
   vW = (modelMatrix * vec4(position, 1.)).xyz;
   gl_Position = projectionMatrix * viewMatrix * vec4(vW, 1.);
 }`
 
-// fragment prelude: spherical Bessel, Yₗᵐ, ray-sphere.
-// cameraPosition, viewMatrix, etc. auto-injected by three.js.
+// prelude: sampler3D(vol), ray-sphere, early termination.
+// {vol} holds  f(p) = jₗ(kr)·Yₗᵐ(n̂)   signed, single-channel, [-1,1]^3 → [0,1]^3 uvw
 export const FS_PRELUDE = `
 precision highp float;
-varying vec3 vW;
-uniform float t, w, k, gain;
-uniform int   L, M;
+precision highp sampler3D;
+in vec3 vW;
+out vec4 fragColor;
+
+uniform float t, w, gain;
 uniform int   STEPS;
-
-// j_ℓ(x) by upward recurrence ; ℓ ≤ 5.
-float jL(int L, float x){
-  if(x < 1e-4) return L == 0 ? 1.0 : 0.0;
-  float s = sin(x), c = cos(x);
-  float j0 = s / x;
-  if(L == 0) return j0;
-  float j1 = (s - x*c) / (x*x);
-  if(L == 1) return j1;
-  float jm = j0, j = j1, jp = 0.0;
-  for(int n = 1; n < 6; n++){
-    if(n >= L) return j;
-    jp = float(2*n + 1) / x * j - jm;
-    jm = j; j = jp;
-  }
-  return j;
-}
-
-// Real Yₗᵐ(n̂) , ℓ ≤ 5.
-float Y(int l, int m, vec3 n){
-  float x=n.x, y=n.y, z=n.z;
-  float xx=x*x, yy=y*y, zz=z*z;
-  if(l==0) return 0.2820947917;
-  if(l==1){
-    if(m==-1) return 0.4886025119*y;
-    if(m== 0) return 0.4886025119*z;
-    if(m== 1) return 0.4886025119*x;
-  }
-  if(l==2){
-    if(m==-2) return 1.0925484306*x*y;
-    if(m==-1) return 1.0925484306*y*z;
-    if(m== 0) return 0.3153915653*(3.*zz-1.);
-    if(m== 1) return 1.0925484306*x*z;
-    if(m== 2) return 0.5462742153*(xx-yy);
-  }
-  if(l==3){
-    if(m==-3) return 0.5900435899*y*(3.*xx-yy);
-    if(m==-2) return 2.8906114426*x*y*z;
-    if(m==-1) return 0.4570457995*y*(5.*zz-1.);
-    if(m== 0) return 0.3731763326*z*(5.*zz-3.);
-    if(m== 1) return 0.4570457995*x*(5.*zz-1.);
-    if(m== 2) return 1.4453057213*z*(xx-yy);
-    if(m== 3) return 0.5900435899*x*(xx-3.*yy);
-  }
-  if(l==4){
-    if(m==-4) return 2.5033429417*x*y*(xx-yy);
-    if(m==-3) return 1.7701307697*y*z*(3.*xx-yy);
-    if(m==-2) return 0.9461746957*x*y*(7.*zz-1.);
-    if(m==-1) return 0.6690465436*y*z*(7.*zz-3.);
-    if(m== 0) return 0.1057855469*(35.*zz*zz-30.*zz+3.);
-    if(m== 1) return 0.6690465436*x*z*(7.*zz-3.);
-    if(m== 2) return 0.4730873479*(xx-yy)*(7.*zz-1.);
-    if(m== 3) return 1.7701307697*x*z*(xx-3.*yy);
-    if(m== 4) return 0.6258357354*(xx*(xx-3.*yy) - yy*(3.*xx-yy));
-  }
-  if(l==5){
-    float z3=zz*z, z4=zz*zz;
-    if(m==-5) return 0.6563820568*y*(5.*xx*xx - 10.*xx*yy + yy*yy);
-    if(m==-4) return 8.3026492595*x*y*(xx-yy)*z;
-    if(m==-3) return 0.4892382995*y*(3.*xx-yy)*(9.*zz-1.);
-    if(m==-2) return 4.7935367849*x*y*z*(3.*zz-1.);
-    if(m==-1) return 0.4529466512*y*(21.*z4 - 14.*zz + 1.);
-    if(m== 0) return 0.1169503225*z*(63.*z4 - 70.*zz + 15.);
-    if(m== 1) return 0.4529466512*x*(21.*z4 - 14.*zz + 1.);
-    if(m== 2) return 2.3967683924*(xx-yy)*z*(3.*zz-1.);
-    if(m== 3) return 0.4892382995*x*(xx-3.*yy)*(9.*zz-1.);
-    if(m== 4) return 2.0756623149*(xx*(xx-3.*yy) - yy*(3.*xx-yy))*z;
-    if(m== 5) return 0.6563820568*x*(xx*xx - 10.*xx*yy + 5.*yy*yy);
-  }
-  return 0.;
-}
 
 vec2 hitS(vec3 o, vec3 d){
   float b = dot(o, d);
@@ -107,12 +41,20 @@ vec2 hitS(vec3 o, vec3 d){
   float q = sqrt(disc);
   return vec2(-b - q, -b + q);
 }
+
+float V(sampler3D s, vec3 p){ return texture(s, p * 0.5 + 0.5).r; }
 `
 
-// emission march skeleton ; {PSI} is a user-supplied snippet returning float psi
-// given in-scope vec3 p (world pos inside sphere). {EXTRA} is additional uniforms/fns.
+// emission march with alpha early-termination + blue-noise jitter.
+// {EXTRA} adds uniforms/helpers ; {PSI} is a body assigning float psi from in-scope vec3 p.
 export const FS_MARCH = (EXTRA, PSI) => `
 ${EXTRA}
+
+// hash → [0,1)  (Hugo Elias)
+float _hash(vec2 p){
+  p = 50.0 * fract(p * 0.3183099 + vec2(0.71, 0.113));
+  return fract(p.x * p.y * (p.x + p.y));
+}
 
 void main(){
   vec3 ro = cameraPosition;
@@ -122,10 +64,15 @@ void main(){
   float _t0 = max(_hh.x, 0.0), _t1 = _hh.y;
   float _dt = (_t1 - _t0) / float(STEPS);
 
+  // jitter start by [0, _dt) → temporal AA in one frame, hides under-sampling
+  float _j = _hash(gl_FragCoord.xy + vec2(fract(t)*1024.0, 0.0));
+  float _ts = _t0 + _j * _dt;
+
   vec3  acc = vec3(0.0);
-  for(int i = 0; i < 256; i++){
+  float aIn = 0.0;                    // accumulated intensity (post-gain)
+  for(int i = 0; i < 512; i++){
     if(i >= STEPS) break;
-    vec3 p = ro + rd * (_t0 + (float(i) + 0.5) * _dt);
+    vec3 p = ro + rd * (_ts + float(i) * _dt);
     float psi = 0.0;
     { ${PSI} }
     float Ii = psi*psi * gain * _dt;
@@ -133,14 +80,16 @@ void main(){
     vec3 cp = vec3(0.25, 0.75, 1.00);
     vec3 cm = vec3(1.00, 0.35, 0.45);
     acc += (sg >= 0. ? cp : cm) * Ii;
+    aIn += Ii;
+    if(aIn > 6.0) break;              // α = 1 − exp(−aIn) > 0.997
   }
   vec3 cc = 1.0 - exp(-acc);
   cc += 0.015;
-  gl_FragColor = vec4(cc, 1.0);
+  fragColor = vec4(cc, 1.0);
 }
 `
 
-// JS mirrors (for particle sim etc.)
+// --- JS mirrors -------------------------------------------------------------
 
 const NRM = {
   '0,0':0.2820947917,
@@ -202,4 +151,44 @@ export function jL(L, x){
     jm = j; j = jp
   }
   return j
+}
+
+// f(p) = jₗ(k|p|)·Yₗᵐ(p̂)   baked into a Data3DTexture ; voxel centre at ((i+0.5)/N)·2−1.
+// Size N: trade precision vs memory ; N=64 → 1 MB (float32), ~5 ms bake.
+export function bakeMode(L, M, k, N = 64){
+  const buf = new Float32Array(N * N * N)
+  let i = 0
+  for(let z = 0; z < N; z++){
+    const zc = ((z + 0.5) / N) * 2 - 1
+    for(let y = 0; y < N; y++){
+      const yc = ((y + 0.5) / N) * 2 - 1
+      for(let x = 0; x < N; x++){
+        const xc = ((x + 0.5) / N) * 2 - 1
+        const r = Math.hypot(xc, yc, zc)
+        let v = 0
+        if(r > 1e-5 && r <= 1){
+          v = jL(L, k*r) * Y(L, M, xc/r, yc/r, zc/r)
+        }
+        buf[i++] = v
+      }
+    }
+  }
+  const tex = new THREE.Data3DTexture(buf, N, N, N)
+  tex.format = THREE.RedFormat
+  tex.type = THREE.FloatType
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.wrapR = THREE.ClampToEdgeWrapping
+  tex.wrapS = THREE.ClampToEdgeWrapping
+  tex.wrapT = THREE.ClampToEdgeWrapping
+  tex.needsUpdate = true
+  return tex
+}
+
+// U(p) = f(p)²  sampled in JS (for particle ∇U)
+export function U(L, M, k, x, y, z){
+  const r = Math.hypot(x, y, z)
+  if(r < 1e-5 || r > 1) return 0
+  const v = jL(L, k*r) * Y(L, M, x/r, y/r, z/r)
+  return v*v
 }
