@@ -75,7 +75,10 @@ function seed(){
 seed()
 const geom = new THREE.BufferGeometry()
 geom.setAttribute('position', new THREE.BufferAttribute(pos, 3))
-const pmat = new THREE.PointsMaterial({color: 0xffcc88, size: 4, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95})
+const col = new Float32Array(N * 3)
+for(let i = 0; i < N; i++){ col[3*i]=1; col[3*i+1]=0.8; col[3*i+2]=0.53 }
+geom.setAttribute('color', new THREE.BufferAttribute(col, 3))
+const pmat = new THREE.PointsMaterial({size: 4, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, vertexColors: true})
 const pts = new THREE.Points(geom, pmat)
 scene.add(pts)
 
@@ -86,8 +89,9 @@ const S = {
   L: 3, M: 2, n: 1,
   γ: 0.4, σ: +1,
   ωrot: 0.3, rotAxis: true,
+
   gain: 18, STEPS: 96, N: 64,
-  clickN: 32,
+  clickN: 32, depthColor: false,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
 }
 function rebake(){
@@ -137,6 +141,7 @@ gui.add(S,'gain', 0.5, 200, 0.5).onChange(sync)
 gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
 gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
 gui.add(S,'clickN', 4, 128, 1).name('click · N')
+gui.add(S,'depthColor').name('depth → color')
 gui.add(S,'reseed').name('↻ seed')
 
 const hud = document.getElementById('hud')
@@ -215,6 +220,25 @@ function loop(){
     arr[3*i+0] = tmpP.x; arr[3*i+1] = tmpP.y; arr[3*i+2] = tmpP.z
   }
   geom.attributes.position.needsUpdate = true
+
+  // per-particle colour : depth from camera  →  hot (near) ↔ cold (far)
+  const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z
+  const camDist = Math.hypot(cx, cy, cz)
+  const d0 = camDist - 1, d1 = camDist + 1
+  for(let i = 0; i < N; i++){
+    if(S.depthColor){
+      const dx = arr[3*i+0] - cx, dy = arr[3*i+1] - cy, dz = arr[3*i+2] - cz
+      const d = Math.hypot(dx, dy, dz)
+      const tt = Math.min(1, Math.max(0, (d - d0) / (d1 - d0)))
+      // hot → cold  (near: amber, far: blue)
+      col[3*i+0] = 1.00 - 0.75*tt
+      col[3*i+1] = 0.80 - 0.40*tt
+      col[3*i+2] = 0.53 + 0.37*tt
+    } else {
+      col[3*i+0] = 1; col[3*i+1] = 0.8; col[3*i+2] = 0.53
+    }
+  }
+  geom.attributes.color.needsUpdate = true
 
   ctl.update()
   rnd.render(scene, cam)
