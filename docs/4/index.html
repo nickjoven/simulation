@@ -1,0 +1,169 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>phase conjugation · ψ* ↔ ψ</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
+  #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.9}
+  #lbl{position:fixed;left:0;right:0;pointer-events:none}
+  #lbl .t{position:absolute;color:#fc9;font:11px ui-monospace,monospace;padding:3px 6px;background:rgba(0,0,0,.4);mix-blend-mode:screen}
+  canvas{display:block}
+  .lil-gui{--background-color:#0a0f14;--text-color:#9cf;--title-background-color:#111;--widget-color:#1a2230;--hover-color:#243040;--focus-color:#2d3a4d;--number-color:#cfe;--string-color:#fc9;--font-size:11px;--input-font-size:11px}
+</style>
+<div id=hud></div>
+<div id=lbl>
+  <span class=t style="top:14vh;right:16vw">n̂·ŷ > 0 : raw</span>
+  <span class=t style="bottom:14vh;right:16vw">n̂·ŷ < 0 : ψ*</span>
+</div>
+<script type=importmap>
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/",
+  "lil-gui":"https://unpkg.com/lil-gui@0.19.2/dist/lil-gui.esm.js"
+}}
+</script>
+<script type=module>
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import GUI from 'lil-gui'
+
+// modes k ∈ {0,1,2,3} ≡ {(2,1),(3,2),(4,0),(5,3)}
+// ψ_raw  = Σ aₖ Yₖ(n̂) · cos(ω(1+εδₖ)t + ηφₖ)
+// ψ_conj = Σ aₖ Yₖ(n̂) · cos(ωt)                   ← scatterer undoes δₖ, φₖ
+// upper hemi = raw ; lower = ψ_conj ; equator = thin dead zone.
+
+const vs = `
+varying vec3 vN;
+void main(){
+  vN = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+}`
+
+const fs = `
+precision highp float;
+varying vec3 vN;
+uniform float t, w, gain;
+uniform float eps, eta;      // ε detune scale, η phase scale
+uniform vec4  amp;           // aₖ
+uniform vec4  delta;         // δₖ ∈ [-1,1]
+uniform vec4  phase;         // φₖ ∈ [0, 2π]
+uniform int   mode;          // 0 raw, 1 conj, 2 split
+
+float Y0(vec3 n){ return 1.0925484306 * n.x * n.z; }                         // Y₂¹
+float Y1(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y; return 1.4453057213 * n.z * (xx - yy); } // Y₃²
+float Y2(vec3 n){ float zz=n.z*n.z; return 0.1057855469 * (35.*zz*zz - 30.*zz + 3.); }   // Y₄⁰
+float Y3(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y, zz=n.z*n.z; return 0.4892382995 * n.x * (xx - 3.*yy) * (9.*zz - 1.); } // Y₅³
+
+float raw(vec3 n){
+  float y0 = Y0(n), y1 = Y1(n), y2 = Y2(n), y3 = Y3(n);
+  return amp.x*y0*cos(w*(1.+eps*delta.x)*t + eta*phase.x)
+       + amp.y*y1*cos(w*(1.+eps*delta.y)*t + eta*phase.y)
+       + amp.z*y2*cos(w*(1.+eps*delta.z)*t + eta*phase.z)
+       + amp.w*y3*cos(w*(1.+eps*delta.w)*t + eta*phase.w);
+}
+float conj(vec3 n){
+  float y0 = Y0(n), y1 = Y1(n), y2 = Y2(n), y3 = Y3(n);
+  return (amp.x*y0 + amp.y*y1 + amp.z*y2 + amp.w*y3) * cos(w*t);
+}
+
+void main(){
+  vec3 n = normalize(vN);
+  float psi;
+  if(mode == 0)      psi = raw(n);
+  else if(mode == 1) psi = conj(n);
+  else               psi = n.y > 0. ? raw(n) : conj(n);
+
+  // equator dead band for split mode
+  float band = (mode == 2) ? smoothstep(0., 0.02, abs(n.y)) : 1.0;
+
+  float I = psi*psi * gain;
+  float sg = sign(psi);
+  vec3 cp = vec3(0.25, 0.75, 1.00);
+  vec3 cm = vec3(1.00, 0.35, 0.45);
+  vec3 c = (sg >= 0. ? cp : cm) * clamp(I, 0., 1.) * band;
+  c += 0.02;
+  gl_FragColor = vec4(c, 1.);
+}`
+
+const scene = new THREE.Scene()
+const cam = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100)
+cam.position.set(0, 0, 3.4)
+const rnd = new THREE.WebGLRenderer({antialias:true})
+rnd.setSize(innerWidth, innerHeight)
+rnd.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.append(rnd.domElement)
+addEventListener('resize', ()=>{
+  cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix()
+  rnd.setSize(innerWidth, innerHeight)
+})
+
+const u = {
+  t:    {value: 0},
+  w:    {value: 2.0},
+  gain: {value: 10},
+  eps:  {value: 0.12},
+  eta:  {value: 1.0},
+  amp:   {value: new THREE.Vector4(1, 1, 1, 1)},
+  delta: {value: new THREE.Vector4(0, 0, 0, 0)},
+  phase: {value: new THREE.Vector4(0, 0, 0, 0)},
+  mode:  {value: 2},
+}
+const mat = new THREE.ShaderMaterial({vertexShader:vs, fragmentShader:fs, uniforms:u})
+const sph = new THREE.Mesh(new THREE.SphereGeometry(1, 384, 192), mat)
+scene.add(sph)
+const ctl = new OrbitControls(cam, rnd.domElement)
+ctl.enableDamping = true
+ctl.autoRotate = true
+ctl.autoRotateSpeed = 0.4
+
+const S = {
+  mode: 'split',
+  ε: 0.12, η: 1.0, ω: 2.0, gain: 10,
+  a0: 1, a1: 1, a2: 1, a3: 1,
+  rotate: true,
+}
+const randomize = ()=>{
+  u.delta.value.set(2*Math.random()-1, 2*Math.random()-1, 2*Math.random()-1, 2*Math.random()-1)
+  u.phase.value.set(2*Math.PI*Math.random(), 2*Math.PI*Math.random(), 2*Math.PI*Math.random(), 2*Math.PI*Math.random())
+}
+randomize()
+
+const sync = ()=>{
+  u.amp.value.set(S.a0, S.a1, S.a2, S.a3)
+  u.eps.value = S.ε; u.eta.value = S.η
+  u.w.value = S.ω; u.gain.value = S.gain
+  u.mode.value = {raw:0, conj:1, split:2}[S.mode]
+}
+sync()
+
+const gui = new GUI({title:'ψ*'})
+gui.add(S,'mode', ['raw','conj','split']).onChange(sync)
+gui.add(S,'ε', 0, 0.4, 0.001).onChange(sync).name('ε (detune)')
+gui.add(S,'η', 0, Math.PI*2, 0.01).onChange(sync).name('η (phase)')
+gui.add(S,'ω', 0.2, 8, 0.05).onChange(sync)
+gui.add(S,'gain', 1, 40, 0.5).onChange(sync)
+const mf = gui.addFolder('aₖ')
+mf.add(S,'a0', 0, 2, 0.01).onChange(sync).name('Y₂¹')
+mf.add(S,'a1', 0, 2, 0.01).onChange(sync).name('Y₃²')
+mf.add(S,'a2', 0, 2, 0.01).onChange(sync).name('Y₄⁰')
+mf.add(S,'a3', 0, 2, 0.01).onChange(sync).name('Y₅³')
+gui.add({roll:randomize}, 'roll').name('↻ δₖ, φₖ')
+gui.add(S,'rotate').onChange(v=>ctl.autoRotate=v)
+
+const hud = document.getElementById('hud')
+let last = performance.now()
+function loop(){
+  const now = performance.now()
+  const dt = (now - last) * 1e-3; last = now
+  u.t.value += dt
+  ctl.update()
+  rnd.render(scene, cam)
+  const d = u.delta.value, p = u.phase.value
+  hud.textContent =
+    `mode = ${S.mode}   ω = ${S.ω.toFixed(2)}   t = ${u.t.value.toFixed(1)}\n`+
+    `ε = ${S.ε.toFixed(3)}   η = ${S.η.toFixed(3)}\n`+
+    `δ = (${d.x.toFixed(2)}, ${d.y.toFixed(2)}, ${d.z.toFixed(2)}, ${d.w.toFixed(2)})\n`+
+    `φ = (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}, ${p.w.toFixed(2)})`
+  requestAnimationFrame(loop)
+}
+loop()
+</script>
