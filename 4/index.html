@@ -25,43 +25,34 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
 
-// 4 modes · (ℓ,m,n): {(2,1,1),(3,2,1),(4,0,1),(5,3,1)}
-// ψ_raw  = Σₖ aₖ jₗₖ(kₖ r) Yₖ(n̂) cos(ω(1+εδₖ)t + ηφₖ)
-// ψ_conj = Σₖ aₖ jₗₖ(kₖ r) Yₖ(n̂) cos(ωt)
-// mode = split → p.y > 0 raw, p.y < 0 conj.
+// 4 baked modes · (ℓ,m,n) = {(2,1,1),(3,2,1),(4,0,1),(5,3,1)}
+// raw  = Σₖ aₖ fₖ cos(ω(1+εδₖ)t + ηφₖ)
+// conj = (Σₖ aₖ fₖ) · cos(ωt)
 
 const EXTRA = `
+uniform sampler3D vol0;
+uniform sampler3D vol1;
+uniform sampler3D vol2;
+uniform sampler3D vol3;
 uniform float eps, eta;
-uniform vec4  amp, delta, phase, kk;
+uniform vec4  amp, delta, phase;
 uniform int   mode;
-
-float Y0(vec3 n){ return 1.0925484306 * n.x * n.z; }
-float Y1(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y; return 1.4453057213 * n.z * (xx - yy); }
-float Y2(vec3 n){ float zz=n.z*n.z; return 0.1057855469 * (35.*zz*zz - 30.*zz + 3.); }
-float Y3(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y, zz=n.z*n.z; return 0.4892382995 * n.x * (xx - 3.*yy) * (9.*zz - 1.); }
 `
 const PSI = `
-float r = length(p);
-vec3 nh = p / max(r, 1e-5);
-float j0 = jL(2, kk.x*r);
-float j1 = jL(3, kk.y*r);
-float j2 = jL(4, kk.z*r);
-float j3 = jL(5, kk.w*r);
-float y0 = Y0(nh), y1 = Y1(nh), y2 = Y2(nh), y3 = Y3(nh);
-float f0 = amp.x * j0 * y0;
-float f1 = amp.y * j1 * y1;
-float f2 = amp.z * j2 * y2;
-float f3 = amp.w * j3 * y3;
+float f0 = amp.x * V(vol0, p);
+float f1 = amp.y * V(vol1, p);
+float f2 = amp.z * V(vol2, p);
+float f3 = amp.w * V(vol3, p);
 float raw = f0*cos(w*(1.+eps*delta.x)*t + eta*phase.x)
           + f1*cos(w*(1.+eps*delta.y)*t + eta*phase.y)
           + f2*cos(w*(1.+eps*delta.z)*t + eta*phase.z)
           + f3*cos(w*(1.+eps*delta.w)*t + eta*phase.w);
-float conj_ = (f0 + f1 + f2 + f3) * cos(w*t);
+float cnj = (f0 + f1 + f2 + f3) * cos(w*t);
 if(mode == 0)      psi = raw;
-else if(mode == 1) psi = conj_;
-else               psi = p.y > 0. ? raw : conj_;
+else if(mode == 1) psi = cnj;
+else               psi = p.y > 0. ? raw : cnj;
 `
 const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
 
@@ -78,16 +69,18 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
-  t:{value:0}, w:{value:2}, k:{value:1}, L:{value:0}, M:{value:0},
-  gain:{value:40}, STEPS:{value:128},
+  t:{value:0}, w:{value:2}, gain:{value:40}, STEPS:{value:96},
+  vol0:{value:null}, vol1:{value:null}, vol2:{value:null}, vol3:{value:null},
   eps:{value:0.12}, eta:{value:1.0},
   amp:   {value: new THREE.Vector4(1, 1, 1, 1)},
   delta: {value: new THREE.Vector4(0, 0, 0, 0)},
   phase: {value: new THREE.Vector4(0, 0, 0, 0)},
-  kk:    {value: new THREE.Vector4(ALPHA[2][0], ALPHA[3][0], ALPHA[4][0], ALPHA[5][0])},
   mode:  {value: 2},
 }
-const mat = new THREE.ShaderMaterial({vertexShader:VS, fragmentShader:fs, uniforms:u})
+const mat = new THREE.ShaderMaterial({
+  vertexShader: VS, fragmentShader: fs, uniforms: u,
+  glslVersion: THREE.GLSL3,
+})
 const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
 scene.add(sph)
 const ctl = new OrbitControls(cam, rnd.domElement)
@@ -97,10 +90,22 @@ ctl.autoRotateSpeed = 0.4
 
 const S = {
   mode: 'split',
-  ε: 0.12, η: 1.0, ω: 2.0, gain: 40, STEPS: 128,
+  ε: 0.12, η: 1.0, ω: 2.0, gain: 40, STEPS: 96, N: 64,
   a0: 1, a1: 1, a2: 1, a3: 1,
   rotate: true,
 }
+
+const MODES = [ [2,1], [3,2], [4,0], [5,3] ]
+function rebake(){
+  const targets = ['vol0','vol1','vol2','vol3']
+  for(let i = 0; i < 4; i++){
+    if(u[targets[i]].value) u[targets[i]].value.dispose()
+    const [L, M] = MODES[i]
+    u[targets[i]].value = bakeMode(L, M, ALPHA[L][0], S.N)
+  }
+}
+rebake()
+
 const randomize = ()=>{
   u.delta.value.set(2*Math.random()-1, 2*Math.random()-1, 2*Math.random()-1, 2*Math.random()-1)
   u.phase.value.set(2*Math.PI*Math.random(), 2*Math.PI*Math.random(), 2*Math.PI*Math.random(), 2*Math.PI*Math.random())
@@ -122,6 +127,7 @@ gui.add(S,'η', 0, Math.PI*2, 0.01).onChange(sync).name('η (phase)')
 gui.add(S,'ω', 0.2, 8, 0.05).onChange(sync)
 gui.add(S,'gain', 1, 200, 1).onChange(sync)
 gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
+gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
 const mf = gui.addFolder('aₖ')
 mf.add(S,'a0', 0, 2, 0.01).onChange(sync).name('j₂Y₂¹')
 mf.add(S,'a1', 0, 2, 0.01).onChange(sync).name('j₃Y₃²')
@@ -138,11 +144,10 @@ function loop(){
   u.t.value += dt
   ctl.update()
   rnd.render(scene, cam)
-  const d = u.delta.value, p = u.phase.value, k = u.kk.value
+  const d = u.delta.value, p = u.phase.value
   hud.textContent =
     `mode = ${S.mode}   ω = ${S.ω.toFixed(2)}   t = ${u.t.value.toFixed(1)}\n`+
-    `ε = ${S.ε.toFixed(3)}   η = ${S.η.toFixed(3)}\n`+
-    `k = (${k.x.toFixed(2)}, ${k.y.toFixed(2)}, ${k.z.toFixed(2)}, ${k.w.toFixed(2)})\n`+
+    `ε = ${S.ε.toFixed(3)}   η = ${S.η.toFixed(3)}   bake = ${S.N}³\n`+
     `δ = (${d.x.toFixed(2)}, ${d.y.toFixed(2)}, ${d.z.toFixed(2)}, ${d.w.toFixed(2)})\n`+
     `φ = (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}, ${p.w.toFixed(2)})`
   requestAnimationFrame(loop)
