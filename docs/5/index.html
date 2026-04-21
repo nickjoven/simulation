@@ -98,10 +98,33 @@ const sync = ()=>{
 }
 sync()
 
+// P : named configurations. null = custom (don't overwrite).
+const P = {
+  'custom':             null,
+  'Y₃² node lace':      { L:3, M:2, n:1, γ:0.30, σ:+1, ωrot:0,    rotAxis:true,  gain:120, STEPS:128, reseed:true },
+  'Y₅⁵ eq carry':       { L:5, M:5, n:1, γ:0.50, σ:-1, ωrot:0.50, rotAxis:true,  gain:200, STEPS:128, reseed:true },
+  'Y₃⁰ shell pick':     { L:3, M:0, n:2, γ:0.40, σ:+1, ωrot:0,    rotAxis:false, gain:150, STEPS:160, reseed:true },
+  'Y₄³ lattice adv':    { L:4, M:3, n:2, γ:1.00, σ:-1, ωrot:1.00, rotAxis:true,  gain:180, STEPS:160, reseed:true },
+  'Y₅³ 3-fold twist':   { L:5, M:3, n:1, γ:0.60, σ:+1, ωrot:0.30, rotAxis:true,  gain:160, STEPS:128, reseed:true },
+  'Y₂¹ dipole orbit':   { L:2, M:1, n:2, γ:0.40, σ:-1, ωrot:0.80, rotAxis:true,  gain:120, STEPS:128, reseed:true },
+  'Y₄² slow chaos':     { L:4, M:2, n:2, γ:5.00, σ:+1, ωrot:-0.06,rotAxis:true,  gain:200, STEPS:32,  reseed:false },
+  'Y₅⁰ axial stack':    { L:5, M:0, n:3, γ:0.30, σ:+1, ωrot:0,    rotAxis:false, gain:140, STEPS:160, reseed:true },
+  'Y₁⁰ breathing':      { L:1, M:0, n:3, γ:0.30, σ:-1, ωrot:0,    rotAxis:false, gain:100, STEPS:128, reseed:true },
+}
+const applyP = (name)=>{
+  const p = P[name]; if(!p) return
+  Object.assign(S, { L:p.L, M:p.M, n:p.n, γ:p.γ, σ:p.σ, ωrot:p.ωrot, rotAxis:p.rotAxis, gain:p.gain, STEPS:p.STEPS })
+  lmCtl.setValue(`${S.L},${S.M}`)
+  gui.controllersRecursive().forEach(c => c.updateDisplay())
+  sync()
+  if(p.reseed){ seed(); geom.attributes.position.needsUpdate = true }
+}
+
 const LM = []
 for(let L = 0; L <= 5; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
 const gui = new GUI({title:'∇U tweezing · 3D'})
-gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
+gui.add({preset:'custom'}, 'preset', Object.keys(P)).name('preset').onChange(applyP)
+const lmCtl = gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
   const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; sync()
 })
 gui.add(S,'n', 1, 3, 1).onChange(sync).name('n radial')
