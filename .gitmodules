@@ -1,0 +1,3 @@
+[submodule "harmonics"]
+	path = harmonics
+	url = https://github.com/nickjoven/harmonics.git
