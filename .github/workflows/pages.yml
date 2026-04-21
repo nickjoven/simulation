@@ -1,0 +1,105 @@
+name: pages
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: pages-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  SRC: docs
+  PAGES_BRANCH: gh-pages
+
+jobs:
+  deploy:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: target
+        id: t
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "dir=pr-${{ github.event.pull_request.number }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: sync → ${{ env.PAGES_BRANCH }}/${{ steps.t.outputs.dir }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:  ${{ github.repository }}
+          DIR:   ${{ steps.t.outputs.dir }}
+          SHA:   ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          url="https://x-access-token:${TOKEN}@github.com/${REPO}.git"
+          tmp="$(mktemp -d)"
+          if ! git clone --depth=1 --branch="${PAGES_BRANCH}" "$url" "$tmp" 2>/dev/null; then
+            git init -q -b "${PAGES_BRANCH}" "$tmp"
+            git -C "$tmp" remote add origin "$url"
+          fi
+          cd "$tmp"
+          git config user.email "actions@users.noreply.github.com"
+          git config user.name  "pages-bot"
+          [ "$DIR" = "." ] || rm -rf "./$DIR"
+          mkdir -p "./$DIR"
+          cp -R "${GITHUB_WORKSPACE}/${SRC}/." "./$DIR/"
+          touch .nojekyll
+          git add -A
+          git commit -q -m "→ ${DIR} @ ${SHA:0:7}" || { echo "∅"; exit 0; }
+          git push -q origin "${PAGES_BRANCH}"
+
+      - name: comment → PR
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:     ${{ github.repository }}
+          PR:       ${{ github.event.pull_request.number }}
+          OWNER:    ${{ github.repository_owner }}
+          NAME:     ${{ github.event.repository.name }}
+          SHA:      ${{ github.sha }}
+        run: |
+          set -euo pipefail
+          url="https://${OWNER}.github.io/${NAME}/pr-${PR}/"
+          tag='<!-- pages-preview -->'
+          body=$(printf '%s\n\n▶ %s\n\n`%s`\n' "$tag" "$url" "${SHA:0:7}")
+          id=$(gh api "repos/${REPO}/issues/${PR}/comments" --paginate \
+                --jq "[.[] | select(.body | startswith(\"${tag}\")) | .id] | first")
+          if [ -n "$id" ] && [ "$id" != "null" ]; then
+            gh api -X PATCH "repos/${REPO}/issues/comments/${id}" -f body="$body" >/dev/null
+          else
+            gh api -X POST  "repos/${REPO}/issues/${PR}/comments" -f body="$body" >/dev/null
+          fi
+
+  cleanup:
+    if: github.event_name == 'pull_request' && github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    steps:
+      - name: drop pr-${{ github.event.pull_request.number }}
+        env:
+          TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO:  ${{ github.repository }}
+          PR:    ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          url="https://x-access-token:${TOKEN}@github.com/${REPO}.git"
+          tmp="$(mktemp -d)"
+          git clone --depth=1 --branch="${PAGES_BRANCH}" "$url" "$tmp" 2>/dev/null || exit 0
+          cd "$tmp"
+          [ -d "pr-${PR}" ] || exit 0
+          rm -rf "pr-${PR}"
+          git config user.email "actions@users.noreply.github.com"
+          git config user.name  "pages-bot"
+          git add -A
+          git commit -q -m "✂ pr-${PR}" || exit 0
+          git push -q origin "${PAGES_BRANCH}"
