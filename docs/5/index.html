@@ -1,0 +1,253 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>∇I tweezing</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
+  #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.9}
+  canvas{display:block}
+  .lil-gui{--background-color:#0a0f14;--text-color:#9cf;--title-background-color:#111;--widget-color:#1a2230;--hover-color:#243040;--focus-color:#2d3a4d;--number-color:#cfe;--string-color:#fc9;--font-size:11px;--input-font-size:11px}
+</style>
+<div id=hud></div>
+<script type=importmap>
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/",
+  "lil-gui":"https://unpkg.com/lil-gui@0.19.2/dist/lil-gui.esm.js"
+}}
+</script>
+<script type=module>
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import GUI from 'lil-gui'
+
+// I(n̂, t) = |Yₗᵐ(Rᵀ(t)·n̂)|²      (rotating mode frame)
+// particles p ∈ S² ,   ṗ = −γ · P_tan(∇I(p))  ,   P_tan = I − p pᵀ
+// σ > 0  :  trap at nodes (I = 0)
+// σ < 0  :  trap at antinodes (max I)
+
+const vs = `
+varying vec3 vN;
+void main(){
+  vN = normalize(normalMatrix * normal);
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
+}`
+
+const fs = `
+precision highp float;
+varying vec3 vN;
+uniform int   L, M;
+uniform mat3  R;
+uniform float gain;
+
+float Y(int l, int m, vec3 n){
+  float x=n.x, y=n.y, z=n.z;
+  float xx=x*x, yy=y*y, zz=z*z;
+  if(l==0) return 0.2820947917;
+  if(l==1){
+    if(m==-1) return 0.4886025119*y;
+    if(m== 0) return 0.4886025119*z;
+    if(m== 1) return 0.4886025119*x;
+  }
+  if(l==2){
+    if(m==-2) return 1.0925484306*x*y;
+    if(m==-1) return 1.0925484306*y*z;
+    if(m== 0) return 0.3153915653*(3.*zz-1.);
+    if(m== 1) return 1.0925484306*x*z;
+    if(m== 2) return 0.5462742153*(xx-yy);
+  }
+  if(l==3){
+    if(m==-3) return 0.5900435899*y*(3.*xx-yy);
+    if(m==-2) return 2.8906114426*x*y*z;
+    if(m==-1) return 0.4570457995*y*(5.*zz-1.);
+    if(m== 0) return 0.3731763326*z*(5.*zz-3.);
+    if(m== 1) return 0.4570457995*x*(5.*zz-1.);
+    if(m== 2) return 1.4453057213*z*(xx-yy);
+    if(m== 3) return 0.5900435899*x*(xx-3.*yy);
+  }
+  if(l==4){
+    if(m==-4) return 2.5033429417*x*y*(xx-yy);
+    if(m==-3) return 1.7701307697*y*z*(3.*xx-yy);
+    if(m==-2) return 0.9461746957*x*y*(7.*zz-1.);
+    if(m==-1) return 0.6690465436*y*z*(7.*zz-3.);
+    if(m== 0) return 0.1057855469*(35.*zz*zz-30.*zz+3.);
+    if(m== 1) return 0.6690465436*x*z*(7.*zz-3.);
+    if(m== 2) return 0.4730873479*(xx-yy)*(7.*zz-1.);
+    if(m== 3) return 1.7701307697*x*z*(xx-3.*yy);
+    if(m== 4) return 0.6258357354*(xx*(xx-3.*yy) - yy*(3.*xx-yy));
+  }
+  return 0.;
+}
+
+void main(){
+  vec3 n = normalize(vN);
+  vec3 nf = transpose(R) * n;
+  float y = Y(L, M, nf);
+  float I = y*y * gain;
+  I = clamp(I, 0., 1.);
+  // antinode = bright ; node = dark.
+  vec3 hot  = vec3(0.10, 0.35, 0.60);
+  vec3 cold = vec3(0.00, 0.00, 0.00);
+  vec3 c = mix(cold, hot, I);
+  gl_FragColor = vec4(c, 1.);
+}`
+
+const scene = new THREE.Scene()
+const cam = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100)
+cam.position.set(0, 0, 3.4)
+const rnd = new THREE.WebGLRenderer({antialias:true})
+rnd.setSize(innerWidth, innerHeight)
+rnd.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.append(rnd.domElement)
+addEventListener('resize', ()=>{
+  cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix()
+  rnd.setSize(innerWidth, innerHeight)
+})
+
+// JS mirror of Y for gradient
+const NRM = {
+  '0,0':0.2820947917, '1,-1':0.4886025119, '1,0':0.4886025119, '1,1':0.4886025119,
+  '2,-2':1.0925484306,'2,-1':1.0925484306,'2,0':0.3153915653,'2,1':1.0925484306,'2,2':0.5462742153,
+  '3,-3':0.5900435899,'3,-2':2.8906114426,'3,-1':0.4570457995,'3,0':0.3731763326,'3,1':0.4570457995,'3,2':1.4453057213,'3,3':0.5900435899,
+  '4,-4':2.5033429417,'4,-3':1.7701307697,'4,-2':0.9461746957,'4,-1':0.6690465436,'4,0':0.1057855469,'4,1':0.6690465436,'4,2':0.4730873479,'4,3':1.7701307697,'4,4':0.6258357354,
+}
+function Y(L, M, x, y, z){
+  const xx=x*x, yy=y*y, zz=z*z, k = NRM[`${L},${M}`]
+  if(L===0) return k
+  if(L===1){ if(M===-1) return k*y; if(M===0) return k*z; if(M===1) return k*x }
+  if(L===2){
+    if(M===-2) return k*x*y; if(M===-1) return k*y*z; if(M===0) return k*(3*zz-1)
+    if(M=== 1) return k*x*z; if(M=== 2) return k*(xx-yy)
+  }
+  if(L===3){
+    if(M===-3) return k*y*(3*xx-yy); if(M===-2) return k*x*y*z
+    if(M===-1) return k*y*(5*zz-1);  if(M=== 0) return k*z*(5*zz-3)
+    if(M=== 1) return k*x*(5*zz-1);  if(M=== 2) return k*z*(xx-yy)
+    if(M=== 3) return k*x*(xx-3*yy)
+  }
+  if(L===4){
+    if(M===-4) return k*x*y*(xx-yy); if(M===-3) return k*y*z*(3*xx-yy)
+    if(M===-2) return k*x*y*(7*zz-1);if(M===-1) return k*y*z*(7*zz-3)
+    if(M=== 0) return k*(35*zz*zz-30*zz+3); if(M=== 1) return k*x*z*(7*zz-3)
+    if(M=== 2) return k*(xx-yy)*(7*zz-1);   if(M=== 3) return k*x*z*(xx-3*yy)
+    if(M=== 4) return k*(xx*(xx-3*yy) - yy*(3*xx-yy))
+  }
+  return 0
+}
+
+const u = {
+  L: {value: 3}, M: {value: 2},
+  R: {value: new THREE.Matrix3()},
+  gain: {value: 4},
+}
+const mat = new THREE.ShaderMaterial({vertexShader:vs, fragmentShader:fs, uniforms:u})
+const sph = new THREE.Mesh(new THREE.SphereGeometry(1, 256, 128), mat)
+scene.add(sph)
+
+// particles
+const N = 128
+const r0 = 1.008
+const pos = new Float32Array(N*3)
+function seed(){
+  for(let i = 0; i < N; i++){
+    const z = 2*Math.random()-1, φ = 2*Math.PI*Math.random(), s = Math.sqrt(1-z*z)
+    pos[3*i+0] = r0 * s*Math.cos(φ)
+    pos[3*i+1] = r0 * s*Math.sin(φ)
+    pos[3*i+2] = r0 * z
+  }
+}
+seed()
+const geom = new THREE.BufferGeometry()
+geom.setAttribute('position', new THREE.BufferAttribute(pos, 3))
+const pmat = new THREE.PointsMaterial({color: 0xffcc88, size: 5, sizeAttenuation: false})
+const pts = new THREE.Points(geom, pmat)
+scene.add(pts)
+
+const ctl = new OrbitControls(cam, rnd.domElement)
+ctl.enableDamping = true
+
+const S = {
+  L: 3, M: 2,
+  γ: 1.0,     // step rate
+  σ: +1,      // +1 node trap, −1 antinode trap
+  axX: 0, axY: 0, axZ: 1,
+  ωrot: 0.3,
+  rotAxis: true,
+  gain: 4,
+  reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
+}
+const sync = ()=>{ u.L.value=S.L; u.M.value=S.M; u.gain.value=S.gain }
+sync()
+
+const LM = []
+for(let L = 0; L <= 4; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
+const gui = new GUI({title:'∇I tweezing'})
+gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
+  const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; sync()
+})
+gui.add(S,'γ', 0, 5, 0.01).name('γ  (step)')
+gui.add(S,'σ', {'+ node':1, '− antinode':-1}).name('σ  (sign)').onChange(v=>S.σ=+v)
+gui.add(S,'ωrot', -2, 2, 0.01).name('ω_rot')
+gui.add(S,'rotAxis').name('R(t) on')
+gui.add(S,'gain', 0.5, 20, 0.1).onChange(sync)
+gui.add(S,'reseed').name('↻ seed')
+
+const hud = document.getElementById('hud')
+
+const tmpV = new THREE.Vector3()
+const tmpN = new THREE.Vector3()
+const tmpG = new THREE.Vector3()
+const q = new THREE.Quaternion()
+const R4 = new THREE.Matrix4()
+const Rm = new THREE.Matrix3()
+const RmT = new THREE.Matrix3()
+
+const H = 1e-3
+function gradI(L, M, n, out){
+  const I0 = Y(L,M,n.x,n.y,n.z); const I0s = I0*I0
+  const Ix = Y(L,M,n.x+H,n.y,n.z), Iy = Y(L,M,n.x,n.y+H,n.z), Iz = Y(L,M,n.x,n.y,n.z+H)
+  out.set((Ix*Ix - I0s)/H, (Iy*Iy - I0s)/H, (Iz*Iz - I0s)/H)
+}
+
+let last = performance.now(), t = 0
+function loop(){
+  const now = performance.now()
+  const dt = Math.min(0.05, (now - last) * 1e-3); last = now
+  t += dt
+
+  // R(t) from (axis, ω_rot · t)
+  const ax = tmpV.set(S.axX, S.axY, S.axZ).normalize()
+  q.setFromAxisAngle(ax, S.rotAxis ? S.ωrot * t : 0)
+  R4.makeRotationFromQuaternion(q)
+  Rm.setFromMatrix4(R4)
+  RmT.copy(Rm).transpose()
+  u.R.value.copy(Rm)
+
+  // particle step
+  const arr = geom.attributes.position.array
+  for(let i = 0; i < N; i++){
+    tmpV.set(arr[3*i+0], arr[3*i+1], arr[3*i+2]).multiplyScalar(1/r0) // unit
+    // to mode frame
+    tmpN.copy(tmpV).applyMatrix3(RmT)
+    gradI(S.L, S.M, tmpN, tmpG)
+    // back to world frame
+    tmpG.applyMatrix3(Rm)
+    // tangent projection: g − (g·p) p
+    const gp = tmpG.dot(tmpV)
+    tmpG.addScaledVector(tmpV, -gp)
+    // step: σ·γ descent (σ=+1 toward I=0, σ=−1 away)
+    tmpV.addScaledVector(tmpG, -S.σ * S.γ * dt)
+    tmpV.normalize().multiplyScalar(r0)
+    arr[3*i+0] = tmpV.x; arr[3*i+1] = tmpV.y; arr[3*i+2] = tmpV.z
+  }
+  geom.attributes.position.needsUpdate = true
+
+  ctl.update()
+  rnd.render(scene, cam)
+  hud.textContent =
+    `(ℓ,m) = (${S.L}, ${S.M})   σ = ${S.σ>0?'+node':'−antinode'}\n`+
+    `γ = ${S.γ.toFixed(2)}   ω_rot = ${S.ωrot.toFixed(2)}   t = ${t.toFixed(1)}\n`+
+    `N = ${N}`
+  requestAnimationFrame(loop)
+}
+loop()
+</script>
