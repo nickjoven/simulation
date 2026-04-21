@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>∑ Yₗᵐ</title>
+<title>∑ jₗ(kr)·Yₗᵐ · hop</title>
 <style>
   html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
   #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.85}
@@ -19,96 +19,24 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA } from '../common.js'
 
-// ψ(θ,φ,t) = [(1-h) Yₗ₁ᵐ¹ + h Yₗ₂ᵐ²] · cos(ωt)
-// I = ψ², sgn(ψ) → colour channel.
+// ψ(p,t) = mix(jₗ₁(k₁r)·Y_{ℓ₁,m₁}(n̂),  jₗ₂(k₂r)·Y_{ℓ₂,m₂}(n̂), h) · cos(ωt)
+// kₖ = α_{ℓₖ, nₖ}  (Dirichlet: j_ℓ(k) = 0 at r = 1).
 
-const vs = `
-varying vec3 vN;
-void main(){
-  vN = normalize(normalMatrix * normal);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
-}`
-
-const fs = `
-precision highp float;
-varying vec3 vN;
-uniform float t;
-uniform int  L1;
-uniform int  M1;
-uniform int  L2;
-uniform int  M2;
-uniform float h;
-uniform float w;
-uniform float gain;
-
-float Y(int l, int m, vec3 n){
-  float x=n.x, y=n.y, z=n.z;
-  float xx=x*x, yy=y*y, zz=z*z;
-  if(l==0) return 0.2820947917;
-  if(l==1){
-    if(m==-1) return 0.4886025119*y;
-    if(m== 0) return 0.4886025119*z;
-    if(m== 1) return 0.4886025119*x;
-  }
-  if(l==2){
-    if(m==-2) return 1.0925484306*x*y;
-    if(m==-1) return 1.0925484306*y*z;
-    if(m== 0) return 0.3153915653*(3.*zz-1.);
-    if(m== 1) return 1.0925484306*x*z;
-    if(m== 2) return 0.5462742153*(xx-yy);
-  }
-  if(l==3){
-    if(m==-3) return 0.5900435899*y*(3.*xx-yy);
-    if(m==-2) return 2.8906114426*x*y*z;
-    if(m==-1) return 0.4570457995*y*(5.*zz-1.);
-    if(m== 0) return 0.3731763326*z*(5.*zz-3.);
-    if(m== 1) return 0.4570457995*x*(5.*zz-1.);
-    if(m== 2) return 1.4453057213*z*(xx-yy);
-    if(m== 3) return 0.5900435899*x*(xx-3.*yy);
-  }
-  if(l==4){
-    if(m==-4) return 2.5033429417*x*y*(xx-yy);
-    if(m==-3) return 1.7701307697*y*z*(3.*xx-yy);
-    if(m==-2) return 0.9461746957*x*y*(7.*zz-1.);
-    if(m==-1) return 0.6690465436*y*z*(7.*zz-3.);
-    if(m== 0) return 0.1057855469*(35.*zz*zz-30.*zz+3.);
-    if(m== 1) return 0.6690465436*x*z*(7.*zz-3.);
-    if(m== 2) return 0.4730873479*(xx-yy)*(7.*zz-1.);
-    if(m== 3) return 1.7701307697*x*z*(xx-3.*yy);
-    if(m== 4) return 0.6258357354*(xx*(xx-3.*yy) - yy*(3.*xx-yy));
-  }
-  if(l==5){
-    float z3=zz*z, z4=zz*zz;
-    if(m==-5) return 0.6563820568*y*(5.*xx*xx - 10.*xx*yy + yy*yy);
-    if(m==-4) return 8.3026492595*x*y*(xx-yy)*z;
-    if(m==-3) return 0.4892382995*y*(3.*xx-yy)*(9.*zz-1.);
-    if(m==-2) return 4.7935367849*x*y*z*(3.*zz-1.);
-    if(m==-1) return 0.4529466512*y*(21.*z4 - 14.*zz + 1.);
-    if(m== 0) return 0.1169503225*z*(63.*z4 - 70.*zz + 15.);
-    if(m== 1) return 0.4529466512*x*(21.*z4 - 14.*zz + 1.);
-    if(m== 2) return 2.3967683924*(xx-yy)*z*(3.*zz-1.);
-    if(m== 3) return 0.4892382995*x*(xx-3.*yy)*(9.*zz-1.);
-    if(m== 4) return 2.0756623149*(xx*(xx-3.*yy) - yy*(3.*xx-yy))*z;
-    if(m== 5) return 0.6563820568*x*(xx*xx - 10.*xx*yy + 5.*yy*yy);
-  }
-  return 0.;
-}
-
-void main(){
-  vec3 n = normalize(vN);
-  float a = Y(L1, M1, n);
-  float b = Y(L2, M2, n);
-  float psi = mix(a, b, h) * cos(w*t);
-  float I = psi*psi * gain;
-  float s = sign(psi);
-  vec3 cp = vec3(0.25, 0.75, 1.00);
-  vec3 cm = vec3(1.00, 0.35, 0.45);
-  vec3 c = (s >= 0. ? cp : cm) * clamp(I, 0., 1.);
-  // node lines → near-black rim
-  c += 0.02;
-  gl_FragColor = vec4(c, 1.);
-}`
+const EXTRA = `
+uniform int   L2;
+uniform int   M2;
+uniform float k2, h;
+`
+const PSI = `
+float r = length(p);
+vec3 nh = p / max(r, 1e-5);
+float a = jL(L,  k *r) * Y(L,  M,  nh);
+float b = jL(L2, k2*r) * Y(L2, M2, nh);
+psi = mix(a, b, h) * cos(w*t);
+`
+const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
 
 const scene = new THREE.Scene()
 const cam = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100)
@@ -123,83 +51,71 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
-  t:   {value:0},
-  L1:  {value:3}, M1:{value:2},
-  L2:  {value:4}, M2:{value:0},
-  h:   {value:0},
-  w:   {value:2.0},
-  gain:{value:6.0},
+  t:   {value: 0},
+  w:   {value: 2.0},
+  gain:{value: 18},
+  STEPS:{value: 96},
+  L:   {value: 3}, M: {value: 2}, k: {value: ALPHA[3][0]},
+  L2:  {value: 4}, M2:{value: 0}, k2:{value: ALPHA[4][0]},
+  h:   {value: 0.0},
 }
-const mat = new THREE.ShaderMaterial({vertexShader:vs, fragmentShader:fs, uniforms:u})
-const sph = new THREE.Mesh(new THREE.SphereGeometry(1, 320, 160), mat)
+const mat = new THREE.ShaderMaterial({vertexShader:VS, fragmentShader:fs, uniforms:u})
+const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
 scene.add(sph)
-
 const ctl = new OrbitControls(cam, rnd.domElement)
 ctl.enableDamping = true
 ctl.autoRotate = true
 ctl.autoRotateSpeed = 0.6
 
-// ℓ ∈ [0,5], |m| ≤ ℓ
+// presets  (ℓ, m, n)
 const P = {
-  '0,0':  [0, 0],
-  '1,0':  [1, 0],
-  '2,0':  [2, 0],
-  '2,2':  [2, 2],
-  '3,0':  [3, 0],
-  '3,2':  [3, 2],
-  '3,3':  [3, 3],
-  '4,0':  [4, 0],
-  '4,2':  [4, 2],
-  '4,4':  [4, 4],
-  '5,0':  [5, 0],
-  '5,3':  [5, 3],
-  '5,5':  [5, 5],
+  '3,2,1':[3,2,1], '4,0,1':[4,0,1], '4,2,1':[4,2,1],
+  '5,3,1':[5,3,1], '5,5,1':[5,5,1], '2,0,1':[2,0,1],
+  '0,0,1':[0,0,1], '0,0,2':[0,0,2], '1,0,1':[1,0,1],
+  '3,0,2':[3,0,2], '2,2,2':[2,2,2],
 }
-
-const s = {
-  A: '3,2',
-  B: '4,0',
-  ω: 2.0,
-  Δt: 3.0,
-  h: 0.0,
-  auto: true,
-  gain: 6.0,
+const S = {
+  A:'3,2,1', B:'4,0,1',
+  ω: 2.0, Δt: 3.0, h: 0.0, auto: true, gain: 18, STEPS: 96,
   rotate: true,
 }
 const apply = ()=>{
-  u.L1.value = P[s.A][0]; u.M1.value = P[s.A][1]
-  u.L2.value = P[s.B][0]; u.M2.value = P[s.B][1]
+  const [L1, M1, N1] = P[S.A], [L2, M2, N2] = P[S.B]
+  u.L.value = L1;  u.M.value = M1;  u.k.value  = ALPHA[L1][N1-1]
+  u.L2.value= L2;  u.M2.value= M2;  u.k2.value = ALPHA[L2][N2-1]
+  u.w.value = S.ω; u.gain.value = S.gain; u.STEPS.value = S.STEPS
 }
 apply()
 
-const gui = new GUI({title:'mode hop'})
-gui.add(s,'A', Object.keys(P)).onChange(apply)
-gui.add(s,'B', Object.keys(P)).onChange(apply)
-gui.add(s,'h', 0, 1, 0.001).listen().onChange(v=>u.h.value=v)
-gui.add(s,'auto').name('auto h(t)')
-gui.add(s,'Δt', 0.2, 10, 0.1).name('Δt / s')
-gui.add(s,'ω',  0, 12, 0.05).onChange(v=>u.w.value=v)
-gui.add(s,'gain', 0.5, 20, 0.1).onChange(v=>u.gain.value=v)
-gui.add(s,'rotate').onChange(v=>ctl.autoRotate=v)
+const gui = new GUI({title:'mode hop · 3D'})
+gui.add(S,'A', Object.keys(P)).onChange(apply)
+gui.add(S,'B', Object.keys(P)).onChange(apply)
+gui.add(S,'h', 0, 1, 0.001).listen().onChange(v=>u.h.value=v)
+gui.add(S,'auto').name('auto h(t)')
+gui.add(S,'Δt', 0.2, 10, 0.1).name('Δt / s')
+gui.add(S,'ω',  0, 12, 0.05).onChange(v=>u.w.value=v)
+gui.add(S,'gain', 1, 80, 0.5).onChange(v=>u.gain.value=v)
+gui.add(S,'STEPS', 24, 256, 4).onChange(v=>u.STEPS.value=v)
+gui.add(S,'rotate').onChange(v=>ctl.autoRotate=v)
 
 const hud = document.getElementById('hud')
-let t0 = performance.now(), last = t0, hopPhase = 0
+let last = performance.now(), ph = 0
 function loop(){
   const now = performance.now()
   const dt = (now - last) * 1e-3; last = now
   u.t.value += dt
-  if(s.auto){
-    hopPhase += dt / Math.max(s.Δt, 0.05)
-    // triangle wave 0→1→0
-    const ph = hopPhase % 2
-    s.h = ph < 1 ? ph : 2 - ph
-    u.h.value = s.h
+  if(S.auto){
+    ph += dt / Math.max(S.Δt, 0.05)
+    const p = ph % 2
+    S.h = p < 1 ? p : 2 - p
+    u.h.value = S.h
   }
   ctl.update()
   rnd.render(scene, cam)
   hud.textContent =
-    `ℓ₁=${u.L1.value} m₁=${u.M1.value}  →  ℓ₂=${u.L2.value} m₂=${u.M2.value}\n`+
-    `h=${s.h.toFixed(3)}  ω=${s.ω.toFixed(2)}  t=${u.t.value.toFixed(1)}`
+    `A=(${S.A})  B=(${S.B})\n`+
+    `k₁=${u.k.value.toFixed(3)}  k₂=${u.k2.value.toFixed(3)}\n`+
+    `h=${S.h.toFixed(3)}  ω=${S.ω.toFixed(2)}  t=${u.t.value.toFixed(1)}  STEPS=${u.STEPS.value}`
   requestAnimationFrame(loop)
 }
 loop()

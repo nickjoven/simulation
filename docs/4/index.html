@@ -1,6 +1,6 @@
 <!doctype html>
 <meta charset=utf-8>
-<title>phase conjugation · ψ* ↔ ψ</title>
+<title>phase conjugation · ψ* ↔ ψ · 3D</title>
 <style>
   html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
   #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.9}
@@ -11,8 +11,8 @@
 </style>
 <div id=hud></div>
 <div id=lbl>
-  <span class=t style="top:14vh;right:16vw">n̂·ŷ > 0 : raw</span>
-  <span class=t style="bottom:14vh;right:16vw">n̂·ŷ < 0 : ψ*</span>
+  <span class=t style="top:14vh;right:16vw">y > 0 : raw</span>
+  <span class=t style="bottom:14vh;right:16vw">y < 0 : ψ*</span>
 </div>
 <script type=importmap>
 {"imports":{
@@ -25,64 +25,45 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA } from '../common.js'
 
-// modes k ∈ {0,1,2,3} ≡ {(2,1),(3,2),(4,0),(5,3)}
-// ψ_raw  = Σ aₖ Yₖ(n̂) · cos(ω(1+εδₖ)t + ηφₖ)
-// ψ_conj = Σ aₖ Yₖ(n̂) · cos(ωt)                   ← scatterer undoes δₖ, φₖ
-// upper hemi = raw ; lower = ψ_conj ; equator = thin dead zone.
+// 4 modes · (ℓ,m,n): {(2,1,1),(3,2,1),(4,0,1),(5,3,1)}
+// ψ_raw  = Σₖ aₖ jₗₖ(kₖ r) Yₖ(n̂) cos(ω(1+εδₖ)t + ηφₖ)
+// ψ_conj = Σₖ aₖ jₗₖ(kₖ r) Yₖ(n̂) cos(ωt)
+// mode = split → p.y > 0 raw, p.y < 0 conj.
 
-const vs = `
-varying vec3 vN;
-void main(){
-  vN = normalize(normalMatrix * normal);
-  gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.);
-}`
+const EXTRA = `
+uniform float eps, eta;
+uniform vec4  amp, delta, phase, kk;
+uniform int   mode;
 
-const fs = `
-precision highp float;
-varying vec3 vN;
-uniform float t, w, gain;
-uniform float eps, eta;      // ε detune scale, η phase scale
-uniform vec4  amp;           // aₖ
-uniform vec4  delta;         // δₖ ∈ [-1,1]
-uniform vec4  phase;         // φₖ ∈ [0, 2π]
-uniform int   mode;          // 0 raw, 1 conj, 2 split
-
-float Y0(vec3 n){ return 1.0925484306 * n.x * n.z; }                         // Y₂¹
-float Y1(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y; return 1.4453057213 * n.z * (xx - yy); } // Y₃²
-float Y2(vec3 n){ float zz=n.z*n.z; return 0.1057855469 * (35.*zz*zz - 30.*zz + 3.); }   // Y₄⁰
-float Y3(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y, zz=n.z*n.z; return 0.4892382995 * n.x * (xx - 3.*yy) * (9.*zz - 1.); } // Y₅³
-
-float raw(vec3 n){
-  float y0 = Y0(n), y1 = Y1(n), y2 = Y2(n), y3 = Y3(n);
-  return amp.x*y0*cos(w*(1.+eps*delta.x)*t + eta*phase.x)
-       + amp.y*y1*cos(w*(1.+eps*delta.y)*t + eta*phase.y)
-       + amp.z*y2*cos(w*(1.+eps*delta.z)*t + eta*phase.z)
-       + amp.w*y3*cos(w*(1.+eps*delta.w)*t + eta*phase.w);
-}
-float conj(vec3 n){
-  float y0 = Y0(n), y1 = Y1(n), y2 = Y2(n), y3 = Y3(n);
-  return (amp.x*y0 + amp.y*y1 + amp.z*y2 + amp.w*y3) * cos(w*t);
-}
-
-void main(){
-  vec3 n = normalize(vN);
-  float psi;
-  if(mode == 0)      psi = raw(n);
-  else if(mode == 1) psi = conj(n);
-  else               psi = n.y > 0. ? raw(n) : conj(n);
-
-  // equator dead band for split mode
-  float band = (mode == 2) ? smoothstep(0., 0.02, abs(n.y)) : 1.0;
-
-  float I = psi*psi * gain;
-  float sg = sign(psi);
-  vec3 cp = vec3(0.25, 0.75, 1.00);
-  vec3 cm = vec3(1.00, 0.35, 0.45);
-  vec3 c = (sg >= 0. ? cp : cm) * clamp(I, 0., 1.) * band;
-  c += 0.02;
-  gl_FragColor = vec4(c, 1.);
-}`
+float Y0(vec3 n){ return 1.0925484306 * n.x * n.z; }
+float Y1(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y; return 1.4453057213 * n.z * (xx - yy); }
+float Y2(vec3 n){ float zz=n.z*n.z; return 0.1057855469 * (35.*zz*zz - 30.*zz + 3.); }
+float Y3(vec3 n){ float xx=n.x*n.x, yy=n.y*n.y, zz=n.z*n.z; return 0.4892382995 * n.x * (xx - 3.*yy) * (9.*zz - 1.); }
+`
+const PSI = `
+float r = length(p);
+vec3 nh = p / max(r, 1e-5);
+float j0 = jL(2, kk.x*r);
+float j1 = jL(3, kk.y*r);
+float j2 = jL(4, kk.z*r);
+float j3 = jL(5, kk.w*r);
+float y0 = Y0(nh), y1 = Y1(nh), y2 = Y2(nh), y3 = Y3(nh);
+float f0 = amp.x * j0 * y0;
+float f1 = amp.y * j1 * y1;
+float f2 = amp.z * j2 * y2;
+float f3 = amp.w * j3 * y3;
+float raw = f0*cos(w*(1.+eps*delta.x)*t + eta*phase.x)
+          + f1*cos(w*(1.+eps*delta.y)*t + eta*phase.y)
+          + f2*cos(w*(1.+eps*delta.z)*t + eta*phase.z)
+          + f3*cos(w*(1.+eps*delta.w)*t + eta*phase.w);
+float conj_ = (f0 + f1 + f2 + f3) * cos(w*t);
+if(mode == 0)      psi = raw;
+else if(mode == 1) psi = conj_;
+else               psi = p.y > 0. ? raw : conj_;
+`
+const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
 
 const scene = new THREE.Scene()
 const cam = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100)
@@ -97,18 +78,17 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
-  t:    {value: 0},
-  w:    {value: 2.0},
-  gain: {value: 10},
-  eps:  {value: 0.12},
-  eta:  {value: 1.0},
+  t:{value:0}, w:{value:2}, k:{value:1}, L:{value:0}, M:{value:0},
+  gain:{value:40}, STEPS:{value:128},
+  eps:{value:0.12}, eta:{value:1.0},
   amp:   {value: new THREE.Vector4(1, 1, 1, 1)},
   delta: {value: new THREE.Vector4(0, 0, 0, 0)},
   phase: {value: new THREE.Vector4(0, 0, 0, 0)},
+  kk:    {value: new THREE.Vector4(ALPHA[2][0], ALPHA[3][0], ALPHA[4][0], ALPHA[5][0])},
   mode:  {value: 2},
 }
-const mat = new THREE.ShaderMaterial({vertexShader:vs, fragmentShader:fs, uniforms:u})
-const sph = new THREE.Mesh(new THREE.SphereGeometry(1, 384, 192), mat)
+const mat = new THREE.ShaderMaterial({vertexShader:VS, fragmentShader:fs, uniforms:u})
+const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
 scene.add(sph)
 const ctl = new OrbitControls(cam, rnd.domElement)
 ctl.enableDamping = true
@@ -117,7 +97,7 @@ ctl.autoRotateSpeed = 0.4
 
 const S = {
   mode: 'split',
-  ε: 0.12, η: 1.0, ω: 2.0, gain: 10,
+  ε: 0.12, η: 1.0, ω: 2.0, gain: 40, STEPS: 128,
   a0: 1, a1: 1, a2: 1, a3: 1,
   rotate: true,
 }
@@ -130,23 +110,24 @@ randomize()
 const sync = ()=>{
   u.amp.value.set(S.a0, S.a1, S.a2, S.a3)
   u.eps.value = S.ε; u.eta.value = S.η
-  u.w.value = S.ω; u.gain.value = S.gain
+  u.w.value = S.ω; u.gain.value = S.gain; u.STEPS.value = S.STEPS
   u.mode.value = {raw:0, conj:1, split:2}[S.mode]
 }
 sync()
 
-const gui = new GUI({title:'ψ*'})
+const gui = new GUI({title:'ψ* · 3D'})
 gui.add(S,'mode', ['raw','conj','split']).onChange(sync)
 gui.add(S,'ε', 0, 0.4, 0.001).onChange(sync).name('ε (detune)')
 gui.add(S,'η', 0, Math.PI*2, 0.01).onChange(sync).name('η (phase)')
 gui.add(S,'ω', 0.2, 8, 0.05).onChange(sync)
-gui.add(S,'gain', 1, 40, 0.5).onChange(sync)
+gui.add(S,'gain', 1, 200, 1).onChange(sync)
+gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
 const mf = gui.addFolder('aₖ')
-mf.add(S,'a0', 0, 2, 0.01).onChange(sync).name('Y₂¹')
-mf.add(S,'a1', 0, 2, 0.01).onChange(sync).name('Y₃²')
-mf.add(S,'a2', 0, 2, 0.01).onChange(sync).name('Y₄⁰')
-mf.add(S,'a3', 0, 2, 0.01).onChange(sync).name('Y₅³')
-gui.add({roll:randomize}, 'roll').name('↻ δₖ, φₖ')
+mf.add(S,'a0', 0, 2, 0.01).onChange(sync).name('j₂Y₂¹')
+mf.add(S,'a1', 0, 2, 0.01).onChange(sync).name('j₃Y₃²')
+mf.add(S,'a2', 0, 2, 0.01).onChange(sync).name('j₄Y₄⁰')
+mf.add(S,'a3', 0, 2, 0.01).onChange(sync).name('j₅Y₅³')
+gui.add({roll: randomize}, 'roll').name('↻ δₖ, φₖ')
 gui.add(S,'rotate').onChange(v=>ctl.autoRotate=v)
 
 const hud = document.getElementById('hud')
@@ -157,10 +138,11 @@ function loop(){
   u.t.value += dt
   ctl.update()
   rnd.render(scene, cam)
-  const d = u.delta.value, p = u.phase.value
+  const d = u.delta.value, p = u.phase.value, k = u.kk.value
   hud.textContent =
     `mode = ${S.mode}   ω = ${S.ω.toFixed(2)}   t = ${u.t.value.toFixed(1)}\n`+
     `ε = ${S.ε.toFixed(3)}   η = ${S.η.toFixed(3)}\n`+
+    `k = (${k.x.toFixed(2)}, ${k.y.toFixed(2)}, ${k.z.toFixed(2)}, ${k.w.toFixed(2)})\n`+
     `δ = (${d.x.toFixed(2)}, ${d.y.toFixed(2)}, ${d.z.toFixed(2)}, ${d.w.toFixed(2)})\n`+
     `φ = (${p.x.toFixed(2)}, ${p.y.toFixed(2)}, ${p.z.toFixed(2)}, ${p.w.toFixed(2)})`
   requestAnimationFrame(loop)
