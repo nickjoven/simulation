@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>simulation · ∑</title>
+<style>
+  :root{color-scheme:dark}
+  html,body{margin:0;min-height:100%;background:#000;color:#9cf;font:13px/1.5 ui-monospace,monospace}
+  main{max-width:56ch;margin:6vh auto;padding:0 1.2rem}
+  h1{font-size:1rem;font-weight:400;color:#cfe;margin:0 0 2rem;letter-spacing:.05em}
+  ol{padding:0;list-style:none;counter-reset:d}
+  li{counter-increment:d;padding:.55rem 0;border-bottom:1px dashed #1a2230}
+  li::before{content:counter(d) ". ";color:#456}
+  li.todo{opacity:.4}
+  a{color:#cfe;text-decoration:none;border-bottom:1px solid #2d3a4d}
+  a:hover{color:#fff;border-bottom-color:#cfe}
+  .k{color:#fc9}
+  .c{color:#678}
+  footer{margin-top:3rem;color:#456}
+</style>
+<main>
+<h1>simulation · programmable scatterer / standing-wave demos</h1>
+<ol>
+  <li><a href="1/">Yₗᵐ mode hop</a> &nbsp;<span class=c>ψ = mix(Yₐ,Y_b)·cos ωt</span></li>
+  <li><a href="2/">whispering gallery</a> &nbsp;<span class=c>sinℓ(θ')·cos(ℓφ'−ωt), â(s)</span></li>
+  <li><a href="3/">sub-harmonic lock</a> &nbsp;<span class=c>(p,q): |p/q − Ω| ≤ K/q²</span></li>
+  <li><a href="4/">phase conjugation</a> &nbsp;<span class=c>ψ* cancels δₖ, φₖ</span></li>
+  <li><a href="5/">∇I tweezing</a> &nbsp;<span class=c>ṗ = −σγ·P_tan(∇|Yₗᵐ|²)</span></li>
+  <li><a href="6/">tower · 6×13⁵⁴</a> &nbsp;<span class=c>R = q₂q₃·(q₂²+q₃²)^{q₂q₃^d}</span></li>
+</ol>
+<footer><span class=k>src</span> · <a href="https://github.com/nickjoven/simulation">github</a> · <span class=k>math</span> · <a href="https://github.com/nickjoven/harmonics">harmonics</a></footer>
+</main>
