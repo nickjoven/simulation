@@ -100,14 +100,14 @@ uniform sampler3D vol;
 uniform float gaugeCos;
 uniform float gaugeSin;
 uniform float rObs;
-uniform float σObs;
+uniform float sObs;
 uniform float obsOn;
 `
 const PSI = `
 vec3 pr = vec3(p.x*gaugeCos - p.y*gaugeSin, p.x*gaugeSin + p.y*gaugeCos, p.z);
 float f = V(vol, pr);
 float r = length(p);
-float wo = exp(-0.5 * pow((r - rObs)/σObs, 2.0));
+float wo = exp(-0.5 * pow((r - rObs)/sObs, 2.0));
 float w  = mix(1.0, wo, obsOn);
 psi = f * w;
 `
@@ -130,7 +130,7 @@ const u = {
   t:{value:0}, w:{value:0}, gain:{value:8}, STEPS:{value:128},
   vol:{value: null},
   gaugeCos:{value:1}, gaugeSin:{value:0},
-  rObs:{value:0.5}, σObs:{value:0.05}, obsOn:{value:1},
+  rObs:{value:0.5}, sObs:{value:0.05}, obsOn:{value:1},
 }
 const mat = new THREE.ShaderMaterial({
   vertexShader: VS, fragmentShader: fs, uniforms: u,
@@ -152,7 +152,7 @@ const S = {
   ωg: 0.3,              // gauge cycle rate
   autoGauge: false,
   rObs: 0.5,            // observable centre in view-mode r-coord
-  σObs: 0.05,
+  sObs: 0.05,
   obsOn: true,
   gain: 8, STEPS: 128,
   rotate: true,
@@ -164,7 +164,7 @@ const rebake = ()=>{
 }
 const sync = ()=>{
   u.gain.value = S.gain; u.STEPS.value = S.STEPS
-  u.rObs.value = S.rObs; u.σObs.value = S.σObs
+  u.rObs.value = S.rObs; u.sObs.value = S.sObs
   u.obsOn.value = S.obsOn ? 1 : 0
   const ph = 2 * Math.PI * S.g / 6
   u.gaugeCos.value = Math.cos(ph); u.gaugeSin.value = Math.sin(ph)
@@ -179,7 +179,7 @@ gui.add(S,'g', 0, 6, 0.01).listen().onChange(sync).name('gauge g/6')
 gui.add(S,'autoGauge').name('gauge ω on')
 gui.add(S,'ωg', 0, 3, 0.01).name('ω_g')
 gui.add(S,'rObs', 0, 1, 0.001).onChange(sync).name('r_obs')
-gui.add(S,'σObs', 0.005, 0.3, 0.005).onChange(sync).name('σ_obs')
+gui.add(S,'sObs', 0.005, 0.3, 0.005).onChange(sync).name('σ_obs')
 gui.add(S,'obsOn').onChange(sync).name('window W(r)')
 gui.add(S,'gain', 0.5, 40, 0.5).onChange(sync)
 gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
@@ -201,7 +201,7 @@ function loop(){
   hud.textContent =
     `R = q₂q₃ · (q₂²+q₃²)^{q₂q₃^d} = 6 · 13⁵⁴\n`+
     `view = ${S.view}   |F₆| = 13   Z₆ phase = ${S.g.toFixed(2)}/6\n`+
-    `r_obs = ${S.rObs.toFixed(3)}  σ_obs = ${S.σObs.toFixed(3)}  ${S.obsOn?'W(r) on':'W(r) off'}\n`+
+    `r_obs = ${S.rObs.toFixed(3)}  σ_obs = ${S.sObs.toFixed(3)}  ${S.obsOn?'W(r) on':'W(r) off'}\n`+
     `σ_r = ${S.σr.toFixed(3)}  σ_θ = ${S.σθ.toFixed(2)}  bake ${S.N}³  STEPS ${S.STEPS}`
   requestAnimationFrame(loop)
 }
