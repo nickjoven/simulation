@@ -225,3 +225,73 @@ export function U(L, M, k, x, y, z){
   const v = jL(L, k*r) * Y(L, M, x/r, y/r, z/r)
   return v*v
 }
+
+// --- Farey sum ---------------------------------------------------------------
+// F_Q : { p/q : 0 ≤ p ≤ q ≤ Q , gcd(p, q) = 1 }    ordered numerically.
+// ψ_F(p̂, r) = Σ_{a/b ∈ F_Q}  (K / b²) · Gθ(n̂ · ĉ_{a/b}) · Gr(r − r_eq) · (1 − n_z²)
+//   ĉ_{a/b} = (cos θ, sin θ, 0) ,   θ = 2π · a / b
+//   Arnold-tongue weight :    w(a/b) = K / b²
+// Traps : positive peaks on the equator at Farey angles, widths ∝ 1/b².
+
+function _gcd(a, b){ while(b){ const r = a % b; a = b; b = r } return a }
+
+export function fareyList(Q){
+  const out = []
+  for(let q = 1; q <= Q; q++){
+    for(let p = 0; p <= q; p++){
+      if(_gcd(p, q) === 1) out.push([p, q])
+    }
+  }
+  out.sort((a, b) => a[0]*b[1] - b[0]*a[1])
+  return out
+}
+
+// signed ψ ; all-positive by construction (Gaussian sum).
+export function fareyPsi(F, K, sθ, sr, rEq, x, y, z){
+  const r = Math.hypot(x, y, z)
+  if(r < 1e-5 || r > 1) return 0
+  const nx = x/r, ny = y/r, nz = z/r
+  const eq = 1 - nz*nz
+  const wr = Math.exp(-0.5 * ((r - rEq)/sr) * ((r - rEq)/sr))
+  let s = 0
+  for(const [p, q] of F){
+    const θ = 2 * Math.PI * p / q
+    const cx = Math.cos(θ), cy = Math.sin(θ)
+    const dotEq = nx*cx + ny*cy
+    const g = Math.exp(-0.5 * ((1 - dotEq)/sθ) * ((1 - dotEq)/sθ))
+    s += (K / (q*q)) * g
+  }
+  return s * wr * eq
+}
+
+export function fareyUScalar(F, K, sθ, sr, rEq, x, y, z){
+  const v = fareyPsi(F, K, sθ, sr, rEq, x, y, z)
+  return v*v
+}
+
+// bake ψ_F into a Data3DTexture (signed, single channel).
+export function bakeFareySum(Q, K, sθ, sr, rEq, N = 64){
+  const F = fareyList(Q)
+  const buf = new Float32Array(N * N * N)
+  let i = 0
+  for(let z = 0; z < N; z++){
+    const zc = ((z + 0.5) / N) * 2 - 1
+    for(let y = 0; y < N; y++){
+      const yc = ((y + 0.5) / N) * 2 - 1
+      for(let x = 0; x < N; x++){
+        const xc = ((x + 0.5) / N) * 2 - 1
+        buf[i++] = fareyPsi(F, K, sθ, sr, rEq, xc, yc, zc)
+      }
+    }
+  }
+  const tex = new THREE.Data3DTexture(buf, N, N, N)
+  tex.format = THREE.RedFormat
+  tex.type = THREE.FloatType
+  tex.minFilter = THREE.LinearFilter
+  tex.magFilter = THREE.LinearFilter
+  tex.wrapR = THREE.ClampToEdgeWrapping
+  tex.wrapS = THREE.ClampToEdgeWrapping
+  tex.wrapT = THREE.ClampToEdgeWrapping
+  tex.needsUpdate = true
+  return tex
+}
