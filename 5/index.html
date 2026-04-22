@@ -79,7 +79,37 @@ geom.setAttribute('position', new THREE.BufferAttribute(pos, 3))
 const col = new Float32Array(N * 3)
 for(let i = 0; i < N; i++){ col[3*i]=1; col[3*i+1]=0.8; col[3*i+2]=0.53 }
 geom.setAttribute('color', new THREE.BufferAttribute(col, 3))
-const pmat = new THREE.PointsMaterial({size: 4, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, vertexColors: true})
+const dwell = new Float32Array(N)   // ∈ [0, 1] : 0 = active, 1 = settled
+geom.setAttribute('dwell', new THREE.BufferAttribute(dwell, 1))
+
+const pts_vs = `
+in vec3 color;
+in float dwell;
+out vec3 vColor;
+uniform float uBaseSize;
+uniform int   uDwellOn;
+void main(){
+  vColor = color;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+  gl_PointSize = (uDwellOn == 1)
+    ? uBaseSize * mix(0.35, 2.6, dwell)
+    : uBaseSize;
+}`
+const pts_fs = `
+in  vec3 vColor;
+out vec4 fragColor;
+void main(){ fragColor = vec4(vColor, 0.95); }`
+
+const pmat = new THREE.ShaderMaterial({
+  vertexShader: pts_vs, fragmentShader: pts_fs,
+  glslVersion: THREE.GLSL3,
+  transparent: true, depthTest: false, depthWrite: false,
+  uniforms: {
+    uBaseSize: { value: 4 },
+    uDwellOn:  { value: 0 },
+  },
+})
 const pts = new THREE.Points(geom, pmat)
 scene.add(pts)
 
@@ -107,6 +137,7 @@ const S = {
   palette: 'default',
   gain: 18, STEPS: 96, N: 64,
   clickN: 32, depthColor: false,
+  dwellOn: false, τmax: 5, baseSize: 4,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
 }
 function rebake(){
@@ -136,6 +167,11 @@ const P = {
   'Y₄² slow chaos':     { L:4, M:2, n:2, γ:5.00, σ:+1, ωrot:-0.06,rotAxis:true,  gain:200, STEPS:32,  reseed:false },
   'Y₅⁰ axial stack':    { L:5, M:0, n:3, γ:0.30, σ:+1, ωrot:0,    rotAxis:false, gain:140, STEPS:128, reseed:true },
   'Y₁⁰ breathing':      { L:1, M:0, n:3, γ:0.30, σ:-1, ωrot:0,    rotAxis:false, gain:100, STEPS:96,  reseed:true },
+  'Y₈⁸ 16-gon equator': { L:8, M:8, n:1, γ:0.50, σ:-1, ωrot:0.30, rotAxis:true,  gain:220, STEPS:128, reseed:true },
+  'Y₇⁴ cage':           { L:7, M:4, n:1, γ:0.60, σ:+1, ωrot:0.15, rotAxis:true,  gain:180, STEPS:128, reseed:true },
+  'Y₁₀⁰ 11-stripe pole':{ L:10,M:0, n:1, γ:0.50, σ:+1, ωrot:0,    rotAxis:false, gain:180, STEPS:160, reseed:true },
+  'Y₆³ fine hex lace':  { L:6, M:3, n:2, γ:0.80, σ:+1, ωrot:0.20, rotAxis:true,  gain:200, STEPS:160, reseed:true },
+  'Y₁₂⁶ dense weave':   { L:12,M:6, n:1, γ:0.80, σ:-1, ωrot:0.10, rotAxis:true,  gain:260, STEPS:192, reseed:true },
 }
 const applyP = (name)=>{
   const p = P[name]; if(!p) return
@@ -148,14 +184,14 @@ const applyP = (name)=>{
 }
 
 const LM = []
-for(let L = 0; L <= 5; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
+for(let L = 0; L <= 12; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
 const gui = new GUI({title:'∇U tweezing · 3D'})
 gui.add({preset:'custom'}, 'preset', Object.keys(P)).name('preset').onChange(applyP)
 gui.add(S,'palette', Object.keys(PALETTES)).name('palette').onChange(applyPalette)
 const lmCtl = gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
   const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; rebake()
 })
-gui.add(S,'n', 1, 3, 1).onChange(rebake).name('n radial')
+gui.add(S,'n', 1, 4, 1).onChange(rebake).name('n radial')
 // γ on √γ slider: linear UI → quadratic rate. ∈ [0, 144].
 const γProxy = { s: Math.sqrt(S.γ) }
 gui.add(γProxy, 's', 0, 12, 0.01).name('γ  (step, s²)').onChange(v => S.γ = v*v).listen()
@@ -167,6 +203,9 @@ gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
 gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
 gui.add(S,'clickN', 4, 128, 1).name('click · N')
 gui.add(S,'depthColor').name('depth → color')
+gui.add(S,'dwellOn').name('dwell → size').onChange(v=>pmat.uniforms.uDwellOn.value = v ? 1 : 0)
+gui.add(S,'τmax', 0.5, 30, 0.5).name('τ_max / s')
+gui.add(S,'baseSize', 1, 12, 0.5).name('point size').onChange(v=>pmat.uniforms.uBaseSize.value = v)
 gui.add(S,'reseed').name('↻ seed')
 
 const hud = document.getElementById('hud')
@@ -234,17 +273,24 @@ function loop(){
 
   const arr = geom.attributes.position.array
   const k = ALPHA[S.L][S.n-1]
+  const τmax = S.τmax                                // s, dwell cap
   for(let i = 0; i < N; i++){
     tmpP.set(arr[3*i+0], arr[3*i+1], arr[3*i+2])
     tmpN.copy(tmpP).applyMatrix3(RmT)
     gradU(S.L, S.M, k, tmpN, tmpG)
     tmpG.applyMatrix3(Rm)
+    // dwell : estimated τ until next move, clipped to [0, τmax], normalised
+    const gmag = tmpG.length()
+    const rate = S.γ * gmag
+    const τ = Math.min(τmax, 1 / (rate + 1e-3))
+    dwell[i] = τ / τmax
     tmpP.addScaledVector(tmpG, -S.σ * S.γ * dt)
     const r = tmpP.length()
     if(r > 1) tmpP.multiplyScalar(1/r)
     arr[3*i+0] = tmpP.x; arr[3*i+1] = tmpP.y; arr[3*i+2] = tmpP.z
   }
   geom.attributes.position.needsUpdate = true
+  geom.attributes.dwell.needsUpdate = true
 
   // per-particle colour : depth from camera  →  pt_near ↔ pt_far
   const pl = PALETTES[S.palette]
