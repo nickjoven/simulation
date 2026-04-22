@@ -65,12 +65,23 @@ ctl.autoRotate = true
 ctl.autoRotateSpeed = 0.6
 
 // presets (ℓ, m, n)
-const P = {
-  '3,2,1':[3,2,1], '4,0,1':[4,0,1], '4,2,1':[4,2,1],
-  '5,3,1':[5,3,1], '5,5,1':[5,5,1], '2,0,1':[2,0,1],
-  '0,0,1':[0,0,1], '0,0,2':[0,0,2], '1,0,1':[1,0,1],
-  '3,0,2':[3,0,2], '2,2,2':[2,2,2], '4,2,2':[4,2,2],
-}
+// (ℓ, m, n) ;  ℓ ∈ [0, 12], |m| ≤ ℓ, n ∈ [1, 4]
+const P = (() => {
+  const d = {}
+  const add = (L, M, n) => { d[`${L},${M},${n}`] = [L, M, n] }
+  // low-ℓ spread
+  for(const n of [1, 2, 3]){
+    for(const L of [0, 1, 2, 3, 4, 5]){
+      for(const M of [-L, 0, L]) add(L, M, n)
+    }
+  }
+  // high-ℓ picks
+  add(6, 3, 1); add(6, 6, 1); add(7, 4, 1); add(8, 0, 1); add(8, 8, 1)
+  add(10, 0, 1); add(10, 5, 1); add(12, 6, 1); add(12, 12, 1)
+  // radial n sweep
+  add(3, 2, 2); add(3, 2, 3); add(3, 2, 4); add(5, 0, 2); add(5, 0, 3)
+  return d
+})()
 const S = {
   A:'3,2,1', B:'4,0,1',
   ω: 2.0, Δt: 3.0, h: 0.0, auto: true, gain: 18, STEPS: 96, N: 64,

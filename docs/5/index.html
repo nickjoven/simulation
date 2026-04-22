@@ -136,6 +136,11 @@ const P = {
   'Y₄² slow chaos':     { L:4, M:2, n:2, γ:5.00, σ:+1, ωrot:-0.06,rotAxis:true,  gain:200, STEPS:32,  reseed:false },
   'Y₅⁰ axial stack':    { L:5, M:0, n:3, γ:0.30, σ:+1, ωrot:0,    rotAxis:false, gain:140, STEPS:128, reseed:true },
   'Y₁⁰ breathing':      { L:1, M:0, n:3, γ:0.30, σ:-1, ωrot:0,    rotAxis:false, gain:100, STEPS:96,  reseed:true },
+  'Y₈⁸ 16-gon equator': { L:8, M:8, n:1, γ:0.50, σ:-1, ωrot:0.30, rotAxis:true,  gain:220, STEPS:128, reseed:true },
+  'Y₇⁴ cage':           { L:7, M:4, n:1, γ:0.60, σ:+1, ωrot:0.15, rotAxis:true,  gain:180, STEPS:128, reseed:true },
+  'Y₁₀⁰ 11-stripe pole':{ L:10,M:0, n:1, γ:0.50, σ:+1, ωrot:0,    rotAxis:false, gain:180, STEPS:160, reseed:true },
+  'Y₆³ fine hex lace':  { L:6, M:3, n:2, γ:0.80, σ:+1, ωrot:0.20, rotAxis:true,  gain:200, STEPS:160, reseed:true },
+  'Y₁₂⁶ dense weave':   { L:12,M:6, n:1, γ:0.80, σ:-1, ωrot:0.10, rotAxis:true,  gain:260, STEPS:192, reseed:true },
 }
 const applyP = (name)=>{
   const p = P[name]; if(!p) return
@@ -148,14 +153,14 @@ const applyP = (name)=>{
 }
 
 const LM = []
-for(let L = 0; L <= 5; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
+for(let L = 0; L <= 12; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
 const gui = new GUI({title:'∇U tweezing · 3D'})
 gui.add({preset:'custom'}, 'preset', Object.keys(P)).name('preset').onChange(applyP)
 gui.add(S,'palette', Object.keys(PALETTES)).name('palette').onChange(applyPalette)
 const lmCtl = gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
   const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; rebake()
 })
-gui.add(S,'n', 1, 3, 1).onChange(rebake).name('n radial')
+gui.add(S,'n', 1, 4, 1).onChange(rebake).name('n radial')
 // γ on √γ slider: linear UI → quadratic rate. ∈ [0, 144].
 const γProxy = { s: Math.sqrt(S.γ) }
 gui.add(γProxy, 's', 0, 12, 0.01).name('γ  (step, s²)').onChange(v => S.γ = v*v).listen()
