@@ -79,7 +79,37 @@ geom.setAttribute('position', new THREE.BufferAttribute(pos, 3))
 const col = new Float32Array(N * 3)
 for(let i = 0; i < N; i++){ col[3*i]=1; col[3*i+1]=0.8; col[3*i+2]=0.53 }
 geom.setAttribute('color', new THREE.BufferAttribute(col, 3))
-const pmat = new THREE.PointsMaterial({size: 4, sizeAttenuation: false, depthTest: false, depthWrite: false, transparent: true, opacity: 0.95, vertexColors: true})
+const dwell = new Float32Array(N)   // ∈ [0, 1] : 0 = active, 1 = settled
+geom.setAttribute('dwell', new THREE.BufferAttribute(dwell, 1))
+
+const pts_vs = `
+in vec3 color;
+in float dwell;
+out vec3 vColor;
+uniform float uBaseSize;
+uniform int   uDwellOn;
+void main(){
+  vColor = color;
+  vec4 mv = modelViewMatrix * vec4(position, 1.0);
+  gl_Position = projectionMatrix * mv;
+  gl_PointSize = (uDwellOn == 1)
+    ? uBaseSize * mix(0.35, 2.6, dwell)
+    : uBaseSize;
+}`
+const pts_fs = `
+in  vec3 vColor;
+out vec4 fragColor;
+void main(){ fragColor = vec4(vColor, 0.95); }`
+
+const pmat = new THREE.ShaderMaterial({
+  vertexShader: pts_vs, fragmentShader: pts_fs,
+  glslVersion: THREE.GLSL3,
+  transparent: true, depthTest: false, depthWrite: false,
+  uniforms: {
+    uBaseSize: { value: 4 },
+    uDwellOn:  { value: 0 },
+  },
+})
 const pts = new THREE.Points(geom, pmat)
 scene.add(pts)
 
@@ -107,6 +137,7 @@ const S = {
   palette: 'default',
   gain: 18, STEPS: 96, N: 64,
   clickN: 32, depthColor: false,
+  dwellOn: false, τmax: 5, baseSize: 4,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
 }
 function rebake(){
@@ -172,6 +203,9 @@ gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
 gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
 gui.add(S,'clickN', 4, 128, 1).name('click · N')
 gui.add(S,'depthColor').name('depth → color')
+gui.add(S,'dwellOn').name('dwell → size').onChange(v=>pmat.uniforms.uDwellOn.value = v ? 1 : 0)
+gui.add(S,'τmax', 0.5, 30, 0.5).name('τ_max / s')
+gui.add(S,'baseSize', 1, 12, 0.5).name('point size').onChange(v=>pmat.uniforms.uBaseSize.value = v)
 gui.add(S,'reseed').name('↻ seed')
 
 const hud = document.getElementById('hud')
@@ -239,17 +273,24 @@ function loop(){
 
   const arr = geom.attributes.position.array
   const k = ALPHA[S.L][S.n-1]
+  const τmax = S.τmax                                // s, dwell cap
   for(let i = 0; i < N; i++){
     tmpP.set(arr[3*i+0], arr[3*i+1], arr[3*i+2])
     tmpN.copy(tmpP).applyMatrix3(RmT)
     gradU(S.L, S.M, k, tmpN, tmpG)
     tmpG.applyMatrix3(Rm)
+    // dwell : estimated τ until next move, clipped to [0, τmax], normalised
+    const gmag = tmpG.length()
+    const rate = S.γ * gmag
+    const τ = Math.min(τmax, 1 / (rate + 1e-3))
+    dwell[i] = τ / τmax
     tmpP.addScaledVector(tmpG, -S.σ * S.γ * dt)
     const r = tmpP.length()
     if(r > 1) tmpP.multiplyScalar(1/r)
     arr[3*i+0] = tmpP.x; arr[3*i+1] = tmpP.y; arr[3*i+2] = tmpP.z
   }
   geom.attributes.position.needsUpdate = true
+  geom.attributes.dwell.needsUpdate = true
 
   // per-particle colour : depth from camera  →  pt_near ↔ pt_far
   const pl = PALETTES[S.palette]
