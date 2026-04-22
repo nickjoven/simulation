@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette } from '../common.js'
 
 // traveling: ψ = jₗ(kr)·sinℓ(θ')·cos(ℓφ'−ωt)
 //          = Y_ℓ^ℓ(p̂)·cos(ωt) + Y_ℓ^{-ℓ}(p̂)·sin(ωt)   (scaled by jₗ and norm)
@@ -56,6 +56,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:1.6}, gain:{value:40}, STEPS:{value:96},
   volC:{value:null}, volS:{value:null},
   Rt:{value: new THREE.Matrix3()},
