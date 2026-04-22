@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, defaultPalette } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, defaultPalette, fareyList } from '../common.js'
 
 // R = q₂·q₃ · (q₂² + q₃²)^{q₂·q₃^d} = 6 · 13^54        (Planck / Hubble)
 //   q₂=2, q₃=3, d=3
@@ -30,8 +30,9 @@ import { VS, FS_PRELUDE, FS_MARCH, defaultPalette } from '../common.js'
 // Observable = Gaussian envelope W(r) centred at r = r_obs.
 // View modes remap shell radii: preserve different notions of "unit spacing".
 
-const F6 = [0, 1/6, 1/5, 1/4, 1/3, 2/5, 1/2, 3/5, 2/3, 3/4, 4/5, 5/6, 1]   // 13 fractions
+// fractions of F_Q as [0, 1] reals ; |F_6| = 13, |F_7| = 19, |F_19| = 121.
 const L_MAX = 54
+function fareyReals(Q){ return fareyList(Q).map(([p, q]) => p / q) }
 
 // shellR(ℓ, mode) ∈ (0, 1]
 //   log  : r = (ℓ+1)/L          unit = one factor of 13
@@ -45,11 +46,11 @@ function shellR(ℓ, mode){
   return t
 }
 
-function bakeTower(N, mode, σr, σθ){
+function bakeTower(N, mode, σr, σθ, Q){
   const buf = new Float32Array(N*N*N)
   const radii = []
   for(let ℓ = 0; ℓ < L_MAX; ℓ++) radii.push(shellR(ℓ, mode))
-  const dirs = F6.map(f => {
+  const dirs = fareyReals(Q).map(f => {
     const a = 2 * Math.PI * f
     return [Math.cos(a), Math.sin(a), 0]
   })
@@ -145,6 +146,7 @@ ctl.autoRotateSpeed = 0.5
 
 const S = {
   view: 'log',
+  Q: 6,                 // |F_Q|   framework-spec q₂q₃ = 6 → 13 fractions.  7 → 19, 19 → 121.
   N: 96,
   σr: 0.008,            // shell half-width (radial)
   σθ: 0.22,             // angular blob half-width
@@ -160,7 +162,7 @@ const S = {
 
 const rebake = ()=>{
   if(u.vol.value) u.vol.value.dispose()
-  u.vol.value = bakeTower(S.N, S.view, S.σr, S.σθ)
+  u.vol.value = bakeTower(S.N, S.view, S.σr, S.σθ, S.Q)
 }
 const sync = ()=>{
   u.gain.value = S.gain; u.STEPS.value = S.STEPS
@@ -173,6 +175,7 @@ rebake(); sync()
 
 const gui = new GUI({title:'tower · 6×13⁵⁴'})
 gui.add(S,'view', ['log','lin','semi']).onChange(()=>{ rebake() })
+gui.add(S,'Q', 2, 19, 1).name('Q (|F_Q| traps)').onChange(rebake)
 gui.add(S,'σr', 0.002, 0.05, 0.001).name('σ_r').onChange(rebake)
 gui.add(S,'σθ', 0.05, 0.6, 0.01).name('σ_θ').onChange(rebake)
 gui.add(S,'g', 0, 6, 0.01).listen().onChange(sync).name('gauge g/6')
@@ -200,7 +203,7 @@ function loop(){
   rnd.render(scene, cam)
   hud.textContent =
     `R = q₂q₃ · (q₂²+q₃²)^{q₂q₃^d} = 6 · 13⁵⁴\n`+
-    `view = ${S.view}   |F₆| = 13   Z₆ phase = ${S.g.toFixed(2)}/6\n`+
+    `view = ${S.view}   Q = ${S.Q}   |F_Q| = ${fareyReals(S.Q).length}   Z₆ phase = ${S.g.toFixed(2)}/6\n`+
     `r_obs = ${S.rObs.toFixed(3)}  σ_obs = ${S.sObs.toFixed(3)}  ${S.obsOn?'W(r) on':'W(r) off'}\n`+
     `σ_r = ${S.σr.toFixed(3)}  σ_θ = ${S.σθ.toFixed(2)}  bake ${S.N}³  STEPS ${S.STEPS}`
   requestAnimationFrame(loop)
