@@ -13,6 +13,14 @@ export const ALPHA = [
   [9.355812112, 12.966530172,16.354710328],
 ]
 
+// default volume palette (cyan/pink). Each demo may override uColPos/uColNeg.
+export function defaultPalette(){
+  return {
+    uColPos: { value: new THREE.Vector3(0.25, 0.75, 1.00) },
+    uColNeg: { value: new THREE.Vector3(1.00, 0.35, 0.45) },
+  }
+}
+
 // GLSL ES 3.00  (three.js: glslVersion = THREE.GLSL3)
 
 export const VS = `
@@ -32,6 +40,8 @@ out vec4 fragColor;
 
 uniform float t, w, gain;
 uniform int   STEPS;
+uniform vec3  uColPos;   // + lobe colour
+uniform vec3  uColNeg;   // − lobe colour
 
 vec2 hitS(vec3 o, vec3 d){
   float b = dot(o, d);
@@ -77,9 +87,7 @@ void main(){
     { ${PSI} }
     float Ii = psi*psi * gain * _dt;
     float sg = sign(psi);
-    vec3 cp = vec3(0.25, 0.75, 1.00);
-    vec3 cm = vec3(1.00, 0.35, 0.45);
-    acc += (sg >= 0. ? cp : cm) * Ii;
+    acc += (sg >= 0. ? uColPos : uColNeg) * Ii;
     aIn += Ii;
     if(aIn > 6.0) break;              // α = 1 − exp(−aIn) > 0.997
   }

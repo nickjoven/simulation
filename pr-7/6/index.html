@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, defaultPalette } from '../common.js'
 
 // R = q₂·q₃ · (q₂² + q₃²)^{q₂·q₃^d} = 6 · 13^54        (Planck / Hubble)
 //   q₂=2, q₃=3, d=3
@@ -126,6 +126,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:0}, gain:{value:8}, STEPS:{value:128},
   vol:{value: null},
   gaugeCos:{value:1}, gaugeSin:{value:0},
