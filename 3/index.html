@@ -22,7 +22,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette } from '../common.js'
 
 // lock: (p,q) = smallest q ≤ q_max with |p/q − Ω| ≤ K/q²
 // ψ = [ Y_q^q(p̂)·cos(ω_eff·t) + Y_q^{-q}(p̂)·sin(ω_eff·t) ] · jq(k_q r) · amp
@@ -53,6 +53,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:1}, gain:{value:60}, STEPS:{value:96},
   volC:{value:null}, volS:{value:null},
   amp:{value:1},

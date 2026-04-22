@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette } from '../common.js'
 
 // ψ(p,t) = [ (1-h)·fA(p) + h·fB(p) ] · cos(ωt)
 // fA, fB baked into 3D textures once per preset change.
@@ -49,6 +49,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:2}, gain:{value:18}, STEPS:{value:96},
   volA:{value: null}, volB:{value: null}, h:{value: 0},
 }
