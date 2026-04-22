@@ -4,10 +4,18 @@
 <style>
   html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
   #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.9}
+  #basin{position:fixed;bottom:12px;right:12px;padding:6px;background:rgba(0,0,0,.55);border:1px solid #1a2230;display:none}
+  #basin canvas{display:block;image-rendering:pixelated}
+  #basinHUD{font:10px ui-monospace,monospace;color:#9cf;margin-top:4px;white-space:pre}
   canvas{display:block}
   .lil-gui{--background-color:#0a0f14;--text-color:#9cf;--title-background-color:#111;--widget-color:#1a2230;--hover-color:#243040;--focus-color:#2d3a4d;--number-color:#cfe;--string-color:#fc9;--font-size:11px;--input-font-size:11px}
 </style>
 <div id=hud></div>
+<div id=basin>
+  <canvas id=basinC width=192 height=96></canvas>
+  <canvas id=basinLegend width=192 height=10></canvas>
+  <div id=basinHUD></div>
+</div>
 <script type=importmap>
 {"imports":{
   "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -143,6 +151,9 @@ const S = {
   gain: 12, STEPS: 96, N: 80,
   depthColor: true, dwellOn: true, τmax: 6, baseSize: 4,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true },
+  // basin-map study
+  basinOn: false, basinW: 192, basinH: 96, basinSteps: 150, basinγ: 3.0,
+  compute: ()=>{ computeBasin() },
 }
 
 let F = fareyList(S.Q)
@@ -184,7 +195,124 @@ gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
 gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
 gui.add(S,'reseed').name('↻ seed')
 
+const fBasin = gui.addFolder('basin map')
+fBasin.add(S,'basinOn').name('show').onChange(v=>{ basinEl.style.display = v ? 'block' : 'none' })
+fBasin.add(S,'basinW', 64, 384, 16).name('grid W')
+fBasin.add(S,'basinH', 32, 192, 8).name('grid H')
+fBasin.add(S,'basinSteps', 50, 400, 10).name('trace steps')
+fBasin.add(S,'basinγ', 0.5, 20, 0.1).name('γ_basin')
+fBasin.add(S,'compute').name('compute')
+
 const hud = document.getElementById('hud')
+const basinEl = document.getElementById('basin')
+const basinCtx = document.getElementById('basinC').getContext('2d')
+const legendCtx = document.getElementById('basinLegend').getContext('2d')
+const basinHUD = document.getElementById('basinHUD')
+
+// HSL → RGB byte, saturation 0.75, lightness 0.55
+function hueRGB(h){
+  h = ((h % 1) + 1) % 1
+  const c = 0.45
+  const x = c * (1 - Math.abs((h * 6) % 2 - 1))
+  let r, g, b
+  if(h < 1/6){ r=c;g=x;b=0 }
+  else if(h < 2/6){ r=x;g=c;b=0 }
+  else if(h < 3/6){ r=0;g=c;b=x }
+  else if(h < 4/6){ r=0;g=x;b=c }
+  else if(h < 5/6){ r=x;g=0;b=c }
+  else{ r=c;g=0;b=x }
+  const m = 0.55 - c/2
+  return [Math.round((r+m)*255), Math.round((g+m)*255), Math.round((b+m)*255)]
+}
+
+// IC grid → trace → nearest-Farey-peak assignment.  Blocking.
+function computeBasin(){
+  const W = S.basinW | 0, H = S.basinH | 0
+  document.getElementById('basinC').width = W
+  document.getElementById('basinC').height = H
+  document.getElementById('basinLegend').width = W
+  const img = basinCtx.createImageData(W, H)
+  const px = img.data
+
+  // palette : hue per Farey fraction (index into sorted F)
+  const FL = fareyList(S.Q)
+  const N_F = FL.length
+  const colors = FL.map((_, i) => hueRGB(i / N_F))
+  const Fvalue = FL.map(([p, q]) => p / q)      // ∈ [0, 1]
+  const counts = new Array(N_F).fill(0)
+
+  // tracer
+  const p = new THREE.Vector3(), g = new THREE.Vector3()
+  const h = 1e-3
+  const γ = S.basinγ, nSteps = S.basinSteps | 0, σ = S.σ
+  const K = S.K, sθ = S.sθ, sr = S.sr, rEq = S.rEq
+
+  for(let j = 0; j < H; j++){
+    const θ = Math.PI * (j + 0.5) / H
+    const ct = Math.cos(θ), st = Math.sin(θ)
+    for(let i = 0; i < W; i++){
+      const φ = 2 * Math.PI * (i + 0.5) / W
+      p.set(rEq * st * Math.cos(φ), rEq * st * Math.sin(φ), rEq * ct)
+      for(let k = 0; k < nSteps; k++){
+        const u0 = fareyUScalar(FL, K, sθ, sr, rEq, p.x,   p.y,   p.z)
+        const ux = fareyUScalar(FL, K, sθ, sr, rEq, p.x+h, p.y,   p.z)
+        const uy = fareyUScalar(FL, K, sθ, sr, rEq, p.x,   p.y+h, p.z)
+        const uz = fareyUScalar(FL, K, sθ, sr, rEq, p.x,   p.y,   p.z+h)
+        g.set((ux-u0)/h, (uy-u0)/h, (uz-u0)/h)
+        const gm = g.length()
+        if(gm < 1e-5) break
+        p.addScaledVector(g, -σ * γ * 0.016)
+        const r = p.length()
+        if(r > 1) p.multiplyScalar(1/r)
+      }
+      // nearest Farey by azimuth on [0,1]
+      let φf = Math.atan2(p.y, p.x) / (2 * Math.PI); if(φf < 0) φf += 1
+      let best = 0, bd = 2
+      for(let a = 0; a < N_F; a++){
+        const d = Math.abs(Fvalue[a] - φf)
+        const dd = Math.min(d, 1 - d)
+        if(dd < bd){ bd = dd; best = a }
+      }
+      counts[best]++
+      const c = colors[best]
+      const ix = (j * W + i) * 4
+      px[ix] = c[0]; px[ix+1] = c[1]; px[ix+2] = c[2]; px[ix+3] = 255
+    }
+  }
+  basinCtx.putImageData(img, 0, 0)
+
+  // legend : 1-pixel-per-Farey-fraction coloured bar at y=0..5, fraction labels below
+  const lg = legendCtx.createImageData(W, 10)
+  for(let i = 0; i < W; i++){
+    const f = (i + 0.5) / W
+    // nearest F index
+    let b = 0, bd = 2
+    for(let a = 0; a < N_F; a++){
+      const d = Math.abs(Fvalue[a] - f)
+      const dd = Math.min(d, 1 - d)
+      if(dd < bd){ bd = dd; b = a }
+    }
+    const c = colors[b]
+    for(let y = 0; y < 6; y++){
+      const ix = (y * W + i) * 4
+      lg.data[ix] = c[0]; lg.data[ix+1] = c[1]; lg.data[ix+2] = c[2]; lg.data[ix+3] = 255
+    }
+  }
+  legendCtx.putImageData(lg, 0, 0)
+
+  // HUD : top 4 basins by coverage
+  const total = W * H
+  const sorted = counts.map((n, i) => [n, i]).sort((a, b) => b[0] - a[0]).slice(0, 5)
+  const lines = [
+    `Q=${S.Q}  |F_Q|=${N_F}  K=${S.K.toFixed(2)}  γ=${γ.toFixed(1)}  steps=${nSteps}  grid=${W}×${H}`,
+    ...sorted.map(([n, i]) => {
+      const [a, b] = FL[i]
+      return `  ${a}/${b}  ${(100 * n / total).toFixed(1)}%`
+    }),
+  ]
+  basinHUD.textContent = lines.join('\n')
+}
+
 
 const tmpP = new THREE.Vector3()
 const tmpN = new THREE.Vector3()
