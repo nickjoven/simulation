@@ -25,7 +25,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette } from '../common.js'
 
 // 4 baked modes · (ℓ,m,n) = {(2,1,1),(3,2,1),(4,0,1),(5,3,1)}
 // raw  = Σₖ aₖ fₖ cos(ω(1+εδₖ)t + ηφₖ)
@@ -69,6 +69,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:2}, gain:{value:40}, STEPS:{value:96},
   vol0:{value:null}, vol1:{value:null}, vol2:{value:null}, vol3:{value:null},
   eps:{value:0.12}, eta:{value:1.0},

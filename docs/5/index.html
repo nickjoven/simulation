@@ -19,7 +19,7 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
 import GUI from 'lil-gui'
-import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, U, Y, jL } from '../common.js'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette, U, Y, jL } from '../common.js'
 
 // ψ ∝ V(vol, Rᵀp) · cos(ωt)      (ω=0 for pure potential visual)
 // particles: ṗ = −σγ∇U(p),  U(p) = [jₗ(kr)·Yₗᵐ(Rᵀp̂)]²
@@ -48,6 +48,7 @@ addEventListener('resize', ()=>{
 })
 
 const u = {
+  ...defaultPalette(),
   t:{value:0}, w:{value:0}, gain:{value:18}, STEPS:{value:96},
   vol:{value: null},
   Rt:{value: new THREE.Matrix3()},
@@ -85,11 +86,25 @@ scene.add(pts)
 const ctl = new OrbitControls(cam, rnd.domElement)
 ctl.enableDamping = true
 
+// PALETTES[name] = { pos, neg, pt_near, pt_far }
+// pos/neg  → volume + / − lobe
+// pt_near/pt_far → particle colour interp ends (only used if depthColor on)
+// if depthColor off, particles drawn in pt_near.
+const PALETTES = {
+  'default':     { pos:[0.25,0.75,1.00], neg:[1.00,0.35,0.45], pt_near:[1.00,0.80,0.53], pt_far:[0.25,0.40,0.90] },
+  'dragonfruit': { pos:[1.00,0.18,0.57], neg:[0.42,0.03,0.55], pt_near:[0.65,1.00,0.30], pt_far:[1.00,0.95,0.88] },
+  'viridis':     { pos:[0.99,0.91,0.14], neg:[0.27,0.01,0.33], pt_near:[0.99,0.91,0.14], pt_far:[0.13,0.57,0.55] },
+  'infrared':    { pos:[1.00,0.55,0.10], neg:[0.35,0.02,0.40], pt_near:[1.00,0.92,0.35], pt_far:[0.60,0.08,0.10] },
+  'mono':        { pos:[0.95,0.95,1.00], neg:[0.30,0.30,0.40], pt_near:[1.00,1.00,1.00], pt_far:[0.40,0.45,0.55] },
+  'blueprint':   { pos:[0.20,0.65,1.00], neg:[0.75,0.85,1.00], pt_near:[1.00,1.00,1.00], pt_far:[0.10,0.30,0.60] },
+  'bloodmoon':   { pos:[1.00,0.15,0.10], neg:[0.35,0.00,0.00], pt_near:[1.00,0.85,0.40], pt_far:[0.20,0.00,0.10] },
+}
+
 const S = {
   L: 3, M: 2, n: 1,
   γ: 0.4, σ: +1,
   ωrot: 0.3, rotAxis: true,
-
+  palette: 'default',
   gain: 18, STEPS: 96, N: 64,
   clickN: 32, depthColor: false,
   reseed: ()=>{ seed(); geom.attributes.position.needsUpdate = true }
@@ -98,8 +113,14 @@ function rebake(){
   if(u.vol.value) u.vol.value.dispose()
   u.vol.value = bakeMode(S.L, S.M, ALPHA[S.L][S.n-1], S.N)
 }
+const applyPalette = ()=>{
+  const pl = PALETTES[S.palette]
+  u.uColPos.value.fromArray(pl.pos)
+  u.uColNeg.value.fromArray(pl.neg)
+}
 const sync = ()=>{
   u.gain.value = S.gain; u.STEPS.value = S.STEPS
+  applyPalette()
 }
 rebake(); sync()
 
@@ -130,6 +151,7 @@ const LM = []
 for(let L = 0; L <= 5; L++) for(let M = -L; M <= L; M++) LM.push(`${L},${M}`)
 const gui = new GUI({title:'∇U tweezing · 3D'})
 gui.add({preset:'custom'}, 'preset', Object.keys(P)).name('preset').onChange(applyP)
+gui.add(S,'palette', Object.keys(PALETTES)).name('palette').onChange(applyPalette)
 const lmCtl = gui.add({lm:'3,2'}, 'lm', LM).name('(ℓ,m)').onChange(v=>{
   const [l,m] = v.split(',').map(Number); S.L=l; S.M=m; rebake()
 })
@@ -224,7 +246,9 @@ function loop(){
   }
   geom.attributes.position.needsUpdate = true
 
-  // per-particle colour : depth from camera  →  hot (near) ↔ cold (far)
+  // per-particle colour : depth from camera  →  pt_near ↔ pt_far
+  const pl = PALETTES[S.palette]
+  const pn = pl.pt_near, pf = pl.pt_far
   const cx = cam.position.x, cy = cam.position.y, cz = cam.position.z
   const camDist = Math.hypot(cx, cy, cz)
   const d0 = camDist - 1, d1 = camDist + 1
@@ -233,12 +257,11 @@ function loop(){
       const dx = arr[3*i+0] - cx, dy = arr[3*i+1] - cy, dz = arr[3*i+2] - cz
       const d = Math.hypot(dx, dy, dz)
       const tt = Math.min(1, Math.max(0, (d - d0) / (d1 - d0)))
-      // hot → cold  (near: amber, far: blue)
-      col[3*i+0] = 1.00 - 0.75*tt
-      col[3*i+1] = 0.80 - 0.40*tt
-      col[3*i+2] = 0.53 + 0.37*tt
+      col[3*i+0] = pn[0] + (pf[0] - pn[0]) * tt
+      col[3*i+1] = pn[1] + (pf[1] - pn[1]) * tt
+      col[3*i+2] = pn[2] + (pf[2] - pn[2]) * tt
     } else {
-      col[3*i+0] = 1; col[3*i+1] = 0.8; col[3*i+2] = 0.53
+      col[3*i+0] = pn[0]; col[3*i+1] = pn[1]; col[3*i+2] = pn[2]
     }
   }
   geom.attributes.color.needsUpdate = true
