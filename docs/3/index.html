@@ -70,7 +70,7 @@ ctl.autoRotate = true
 ctl.autoRotateSpeed = 0.5
 
 const S = {
-  Ω: 0.5, Ωmax: 2.0, K: 0.08, qMax: 5,
+  Ω: 0.5, Ωmax: 2.0, K: 0.08, qMax: 10,
   gain: 60, STEPS: 96, N: 64,
   auto: true, Δt: 24, rotate: true,
 }
@@ -87,13 +87,14 @@ function lock(x, qMax, K){
   return {p, q, amp: 0.15, locked: false}
 }
 
-// bake C and S for q=1..5
+// bake C and S for q=1..Q_BAKE (texture count grows linearly; N³·2·Q_BAKE floats).
+const Q_BAKE = 10
 let VC = [], VS_ = []
 function rebake(){
   for(const t of VC) t?.dispose()
   for(const t of VS_) t?.dispose()
   VC = [null], VS_ = [null]
-  for(let q = 1; q <= 5; q++){
+  for(let q = 1; q <= Q_BAKE; q++){
     const k = ALPHA[q][0]
     VC.push(bakeMode(q,  q, k, S.N))
     VS_.push(bakeMode(q, -q, k, S.N))
@@ -104,7 +105,7 @@ rebake()
 const gui = new GUI({title:'sub-harmonic lock · 3D'})
 gui.add(S,'Ω', 0, S.Ωmax, 0.0005).listen()
 gui.add(S,'K', 0.01, 0.3, 0.005)
-gui.add(S,'qMax', 2, 5, 1)
+gui.add(S,'qMax', 2, 10, 1)
 gui.add(S,'gain', 1, 300, 1).onChange(v=>u.gain.value=v)
 gui.add(S,'STEPS', 32, 256, 4).onChange(v=>u.STEPS.value=v)
 gui.add(S,'N', 32, 128, 16).name('bake N').onChange(rebake)
@@ -148,7 +149,7 @@ function loop(){
     S.Ω = (p < 1 ? p : 2 - p) * S.Ωmax
   }
   const lk = lock(S.Ω, S.qMax, S.K)
-  const q = Math.max(1, Math.min(5, lk.q))
+  const q = Math.max(1, Math.min(Q_BAKE, lk.q))
   u.volC.value = VC[q]
   u.volS.value = VS_[q]
   u.w.value = lk.p / lk.q
