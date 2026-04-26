@@ -275,7 +275,12 @@ function recompute(){
     `K = ${S.K.toFixed(6)}   K_c ≈ 0.9716354\n`+
     `R_∞ ≈ ±0.2500888   golden-KAM threshold\n`+
     `⟨S⟩   θ₀ = ${S.θ_S.toFixed(3)}   (elliptic branch)\n`+
-    `⟨ST⟩  θ₀ = ${S.θ_ST.toFixed(3)}   (hyperbolic branch)`
+    `⟨ST⟩  θ₀ = ${S.θ_ST.toFixed(3)}   (hyperbolic branch)\n`+
+    `\n`+
+    `Born exponent = 2  (Lemma 7) :\n`+
+    `  saddle-node x² + μ = 0 is the only structurally\n`+
+    `  stable codim-1 normal form on S¹  ⇒  ⟨P⟩ ∝ |ψ|².\n`+
+    `  Same parabola appears in R = (2 − Tr DT^q)/4 above.`
   // table
   const tbody = document.querySelector('#tbl tbody')
   tbody.innerHTML = ''
