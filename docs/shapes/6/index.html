@@ -1,0 +1,121 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>6 · Farey · Stern-Brocot</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>6 / 8</span></nav>
+<h1>Farey · Stern-Brocot — mediant (p₁+p₂)/(q₁+q₂)</h1>
+
+<canvas id=cv data-ratio=.6></canvas>
+<div class=row>
+  <label for=depth>depth</label>
+  <input id=depth type=range min=1 max=7 step=1 value=5>
+  <span id=dv class=k>F₅ · 11 fractions</span>
+</div>
+
+<p class=eqn>mediant:   a/b  ⊕  c/d  =  (a+c)/(b+d)             (1858 · Stern, Brocot)
+weights:   w(p/q) = K / q²                            (Arnold-tongue width)</p>
+
+<h2>identity</h2>
+<p>Every fraction in lowest terms shows up exactly once in the
+Stern-Brocot tree by repeated mediant. The Farey sequence F_n is the
+fractions with denominator ≤ n, sorted. Two neighbours a/b &lt; c/d in
+F_n always satisfy <span class=m>bc − ad = 1</span> — the
+unimodular condition that generates SL(2,ℤ).</p>
+
+<h2>role in the framework</h2>
+<p>The whole framework lives on this tree:</p>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b class=k>Population law.</b> N(p/q) = N_total · g(p/q) · w(p/q),
+  with w ∝ K/q². The framework is one equation on this tree.</li>
+  <li><b class=k>Ω_Λ = 13/19.</b> The Farey count |F_6| = 13 partitions
+  dark energy from matter at 0.07σ accuracy. Three numbers — q₂ = 2,
+  q₃ = 3, |F_6| = 13 — set the cosmological parameters.</li>
+  <li><b class=k>SL(2,ℤ) → SL(2,ℝ).</b> The mediant generates SL(2,ℤ);
+  its completion is SL(2,ℝ), dimension 2² − 1 = 3. That is where the
+  three spatial dimensions come from.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/farey_partition.md">farey_partition.md</a> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/mediant_derivation.md">mediant_derivation.md</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/three_dimensions.md">three_dimensions.md</a></p>
+
+<footer>
+  <a href="../5/">← devil's staircase</a> · <a href="../">catalog</a> · <a href="../7/">next: Klein bottle →</a>
+</footer>
+</main>
+<script type=module>
+import { fit, view, clear } from '../plot.js'
+const cv = document.getElementById('cv')
+const depth = document.getElementById('depth')
+const dv = document.getElementById('dv')
+
+function gcd(a,b){ while(b){ [a,b] = [b, a%b] } return a }
+function farey(n){
+  const out = []
+  for(let q = 1; q <= n; q++)
+    for(let p = 0; p <= q; p++)
+      if(gcd(p,q) === 1) out.push([p,q])
+  out.sort((a,b)=>a[0]*b[1]-b[0]*a[1])
+  return out
+}
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  clear(ctx, w, h)
+  const V = view(w, h, 0, 1, 0, 1, 26)
+  const n = +depth.value
+  const F = farey(n)
+  dv.textContent = 'F' + ['','₁','₂','₃','₄','₅','₆','₇'][n] + ' · ' + F.length + ' fractions'
+
+  // baseline
+  ctx.strokeStyle = '#1a2230'
+  ctx.beginPath()
+  ctx.moveTo(V.x(0), V.y(0.5)); ctx.lineTo(V.x(1), V.y(0.5))
+  ctx.stroke()
+
+  // for each fraction p/q draw a stem with height 1/q² (Arnold-tongue weight)
+  let maxW = 0
+  for(const [p,q] of F) maxW = Math.max(maxW, 1/(q*q))
+  for(const [p,q] of F){
+    const x = V.x(p/q)
+    const hh = (1/(q*q)) / maxW   // 0..1
+    const top = V.y(0.5 + 0.4 * hh)
+    const bot = V.y(0.5)
+    ctx.strokeStyle = q <= 2 ? '#fc9' : q <= 3 ? '#9af' : q <= 5 ? '#a8c' : '#566'
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    ctx.moveTo(x, bot); ctx.lineTo(x, top)
+    ctx.stroke()
+    ctx.fillStyle = q <= 3 ? '#dfe' : '#789'
+    ctx.font = (q <= 3 ? '11px' : '9px') + ' ui-monospace,monospace'
+    if(q <= 5 || (q <= n && p+q < 13)){
+      ctx.fillText(p+'/'+q, x - (q <= 3 ? 8 : 6), top - 4)
+    }
+    ctx.beginPath()
+    ctx.fillStyle = q <= 2 ? '#fc9' : q <= 3 ? '#9af' : '#456'
+    ctx.arc(x, bot, q <= 3 ? 3 : 2, 0, Math.PI*2)
+    ctx.fill()
+  }
+  // mediant illustration:  1/2 ⊕ 1/3 = 2/5
+  if(n >= 5){
+    ctx.fillStyle = '#fc9'
+    ctx.font = '11px ui-monospace,monospace'
+    const y0 = V.y(0.13)
+    ctx.fillText('1/2 ⊕ 1/3 = 2/5', V.x(0.62), y0)
+    // arrows
+    ctx.strokeStyle = '#fc9'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(V.x(0.5), V.y(0.5) + 4)
+    ctx.lineTo(V.x(0.5), y0 + 4)
+    ctx.lineTo(V.x(0.6), y0 + 4)
+    ctx.stroke()
+  }
+}
+addEventListener('resize', draw)
+depth.addEventListener('input', draw)
+draw()
+</script>
