@@ -1,0 +1,66 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>shapes · teaching catalog</title>
+<link rel=stylesheet href=style.css>
+<main>
+<nav class=crumb><a href="../">← simulation</a></nav>
+<h1>shapes · what the framework is made of</h1>
+<p class=c>Eight elementary shapes carry the framework. Each one is a visual you can
+draw in seconds; each one is doing load-bearing work in a derivation on
+<a href="https://github.com/nickjoven/harmonics">harmonics</a>. Teaching
+material — the visual first, the equation second, the role in the framework
+last.</p>
+
+<ol>
+  <li><a href="1/">parabola</a> &nbsp;<span class=c>y = x² · saddle-node normal form · |ψ|² exponent</span></li>
+  <li><a href="2/">sine</a> &nbsp;<span class=c>y = sin x · circle map coupling · phase response</span></li>
+  <li><a href="3/">half-twist</a> &nbsp;<span class=c>1/2 · ψ(x+L) = −ψ(x) · Möbius, det M = −1</span></li>
+  <li><a href="4/">circle map · Arnold tongues</a> &nbsp;<span class=c>θ' = θ + Ω − (K/2π) sin 2πθ · saddle-node at every tongue edge</span></li>
+  <li><a href="5/">devil's staircase</a> &nbsp;<span class=c>rotation number ρ(Ω) · self-similar at φ²</span></li>
+  <li><a href="6/">Farey · Stern-Brocot</a> &nbsp;<span class=c>mediant (p₁+p₂)/(q₁+q₂) · widths ∝ 1/q²</span></li>
+  <li><a href="7/">Klein bottle</a> &nbsp;<span class=c>two half-twists · 4 modes at (q₂,q₃) = (2,3)</span></li>
+  <li><a href="8/">golden gap</a> &nbsp;<span class=c>1/φ between tongues 1/2 and 1/3 · where the twist lives</span></li>
+</ol>
+
+<h2>concept realizations</h2>
+<p>Sister section: the same framework concepts drawn directly as
+geometry (no function plots). Triangle in a circle = 1/3-locked
+orbit; two vectors adding tip-to-tail = mediant; three spins on an
+antiperiodic loop = frustration; N arrows in a disk = order parameter.</p>
+<p>→ <a href="concepts/">shapes · concepts</a></p>
+
+<h2>how to read each page</h2>
+<p>Each page has the same three blocks:</p>
+<p class=kv><b>shape</b> — the picture, with one or two sliders.</p>
+<p class=kv><b>identity</b> — the defining equation, no more than two lines.</p>
+<p class=kv><b>role</b> — what the shape does in the framework, with a link
+to the canonical derivation on <a href="https://github.com/nickjoven/harmonics">harmonics</a>.</p>
+
+<h2>the one-paragraph through-line</h2>
+<p>A rational p/q on a circle is an Arnold tongue. Every tongue boundary
+is a saddle-node bifurcation — the <span class=k>parabola</span> y = x²+μ
+collapsing two fixed points. The basin separation is Δθ ∝ √ε, so the
+tongue width — equivalently the basin measure — is ∝ Δθ² = |ψ|². That
+is the <span class=k>Born rule</span>. The Mediant builds the rationals;
+the <span class=k>Farey</span> partition orders them; their widths sum
+to 1. A <span class=k>half-twist</span> at the widest gap (1/φ, between
+q=2 and q=3) is the Möbius boundary condition; two half-twists are the
+<span class=k>Klein bottle</span>. Everything else — the spectral tilt,
+the Standard Model gauge group, Einstein at K = 1, Schrödinger at
+K &lt; 1 — is bookkeeping on these shapes.</p>
+
+<footer>
+  <div><span class=k>derivations</span> · this catalog cites
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/born_rule.md">born_rule</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/circle_map.py">circle_map</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_twist_dynamics.md">half_twist</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/farey_partition.md">farey_partition</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/mediant_derivation.md">mediant</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/klein_bottle.md">klein_bottle</a> ·
+    <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/spectral_tilt.md">spectral_tilt</a></div>
+  <div style="margin-top:.3rem">
+    pedagogy note · <a href="PEDAGOGY.md">shape pedagogy index</a>
+    <span class=c>(teaching-order map; no novel derivations)</span>
+  </div>
+</footer>
+</main>
