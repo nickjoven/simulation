@@ -1,0 +1,99 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>3 · half-twist · Möbius</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>3 / 8</span></nav>
+<h1>half-twist — ψ(x + L) = −ψ(x)</h1>
+
+<canvas id=cv data-ratio=.55></canvas>
+<div class=row>
+  <label for=phi>twist</label>
+  <input id=phi type=range min=0 max=1 step=.005 value=.5>
+  <span id=phiv class=k>τ = 0.50  (Möbius)</span>
+</div>
+
+<p class=eqn>antiperiodic:  ψ(x + L) = e^{i π τ} · ψ(x)
+   τ = 0  →  periodic              (Hückel ring)
+   τ = ½  →  −1, one half-twist    (Möbius)
+   τ = 1  →  +1, full twist         (back to periodic)</p>
+
+<h2>identity</h2>
+<p>A strip glued end-to-end with one half-rotation. Walk around once,
+your sign flips. Walk around twice, you return. The twist is a global
+property — it cannot be removed by relabeling the local basis. It is a
+topological invariant: <span class=m>det M = −1</span>, where M is the
+Fibonacci recursion matrix [[1,1],[1,0]].</p>
+
+<h2>role in the framework</h2>
+<p>The framework's <b class=k>Klein-bottle</b> boundary condition is the
+half-twist applied to the substrate's phase field. It produces three
+consequences that the periodic ring does not:</p>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b>Frustration.</b> The coupling wants all phases equal; the
+  topology demands a π jump somewhere. The jump migrates to the widest
+  gap (1/φ) — see page 8.</li>
+  <li><b>Mode parity.</b> Only modes with the right denominator survive
+  — q even vs odd matters.</li>
+  <li><b>Spectral tilt.</b> The half-twist forces the recursion det M
+  = −1, which gives the φ² self-similarity of the spectral tilt.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_twist_dynamics.md">half_twist_dynamics.md</a> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/one_half_twist.py">one_half_twist.py</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_mobius_boundary.md">half_mobius_boundary.md</a> (Z4)</p>
+
+<footer>
+  <a href="../2/">← sine</a> · <a href="../">catalog</a> · <a href="../4/">next: circle map →</a>
+</footer>
+</main>
+<script type=module>
+import { fit, view, axes, plot, clear } from '../plot.js'
+const cv = document.getElementById('cv')
+const phi = document.getElementById('phi')
+const phiv = document.getElementById('phiv')
+
+function label(t){
+  if(Math.abs(t)   < .01) return 'τ = 0.00  (periodic)'
+  if(Math.abs(t-.5) < .01) return 'τ = 0.50  (Möbius)'
+  if(Math.abs(t-1)  < .01) return 'τ = 1.00  (periodic again)'
+  return 'τ = ' + t.toFixed(2)
+}
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  clear(ctx, w, h)
+  const V = view(w, h, 0, 4, -1.4, 1.4, 22)
+  axes(ctx, V, { gridStep: .5 })
+  const t = +phi.value
+  phiv.textContent = label(t)
+  // base wave over [0,1]; tile it 4 times with phase factor e^{i π τ}
+  const wave = x => Math.sin(2*Math.PI*x + Math.PI*0.15)
+  for(let n = 0; n < 4; n++){
+    const sign = Math.cos(Math.PI * t * n)   // real part of e^{i π τ n}
+    plot(ctx, V, x => {
+      if(x < n || x > n+1) return NaN
+      return sign * wave(x - n)
+    }, { color: n === 0 ? '#cfe' : '#9cf', width: 1.8 })
+  }
+  // vertical tick at each L
+  ctx.save()
+  ctx.strokeStyle = '#243040'
+  ctx.setLineDash([2,3])
+  ctx.beginPath()
+  for(let n = 1; n <= 3; n++){
+    ctx.moveTo(V.x(n), V.y(-1.4)); ctx.lineTo(V.x(n), V.y(1.4))
+  }
+  ctx.stroke()
+  ctx.restore()
+  // labels
+  ctx.fillStyle = '#456'
+  ctx.font = '10px ui-monospace,monospace'
+  for(let n = 0; n < 4; n++) ctx.fillText('cycle ' + (n+1), V.x(n+0.05), V.y(1.4) + 11)
+}
+addEventListener('resize', draw)
+phi.addEventListener('input', draw)
+draw()
+</script>

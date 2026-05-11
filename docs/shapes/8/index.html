@@ -1,0 +1,119 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>8 · golden gap · 1/φ</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>8 / 8</span></nav>
+<h1>golden gap — 1/φ between tongues 1/2 and 1/3</h1>
+
+<canvas id=cv data-ratio=.6></canvas>
+<div class=row>
+  <label for=depth>Fibonacci depth</label>
+  <input id=depth type=range min=2 max=7 step=1 value=4>
+  <span id=dv class=k>depth 4 · bracket [3/5, 5/8]</span>
+</div>
+
+<p class=eqn>1/φ  =  φ − 1  =  0.6180339887…
+brackets converge:  [1/2, 2/3] → [2/3, 3/5] → [3/5, 5/8] → [5/8, 8/13] → …
+gap width:          1/6   1/15   1/40   1/104   …    × φ⁻²</p>
+
+<h2>identity</h2>
+<p>The reciprocal of the golden ratio is the most-irrational number on
+[0,1]: its continued-fraction expansion is [0; 1, 1, 1, …]. It is the
+last point reached by the Farey sequence — the limit of consecutive
+Fibonacci ratios <span class=m>F_n / F_{n+1}</span> — and the gap
+between Arnold tongues 1/2 and 1/3 brackets it through every depth.</p>
+
+<h2>role in the framework</h2>
+<p>This is where the framework's <b class=k>frustration</b> lives:</p>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b>The half-twist is free here, expensive everywhere else.</b>
+  The π discontinuity of the Möbius BC must sit somewhere; the gap
+  at 1/φ minimises its cost.</li>
+  <li><b>Spectral tilt comes from φ² zoom.</b> The staircase is
+  self-similar under the Fibonacci recursion at 1/φ. Each depth narrows
+  the bracket by φ² and increases the twist frequency by φ⁴ — a
+  position/momentum-like uncertainty relation between gap width and
+  twist frequency.</li>
+  <li><b>N_efolds = √5 / rate.</b> The number of e-folds of inflation
+  is set by the eigenvalues of x² − x − 1 = 0 — golden ratio. This
+  is the 2028 prediction.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_twist_dynamics.md">half_twist_dynamics.md</a> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/spectral_tilt.md">spectral_tilt.md</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/phi_squared_zoom.py">phi_squared_zoom.py</a></p>
+
+<footer>
+  <a href="../7/">← Klein bottle</a> · <a href="../">catalog</a>
+</footer>
+</main>
+<script type=module>
+import { fit, view, axes, clear } from '../plot.js'
+const cv = document.getElementById('cv')
+const depth = document.getElementById('depth')
+const dv = document.getElementById('dv')
+
+// Fibonacci ratios converging to 1/φ
+function fib(n){ const f=[1,1]; while(f.length<=n+2) f.push(f[f.length-1]+f[f.length-2]); return f }
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  clear(ctx, w, h)
+  const V = view(w, h, 0.45, 0.75, 0, +depth.value + 1, 26)
+  axes(ctx, V, { gridStep: 0.05 })
+  const n = +depth.value
+  const F = fib(n + 4)
+  const PHI = (1 + Math.sqrt(5)) / 2
+  const inv = 1 / PHI
+
+  // mark 1/φ
+  ctx.strokeStyle = '#fc9'
+  ctx.lineWidth = 1.4
+  ctx.beginPath()
+  ctx.moveTo(V.x(inv), V.y(V.ymin))
+  ctx.lineTo(V.x(inv), V.y(V.ymax))
+  ctx.stroke()
+  ctx.fillStyle = '#fc9'
+  ctx.font = '11px ui-monospace,monospace'
+  ctx.fillText('1/φ = ' + inv.toFixed(5), V.x(inv) + 4, V.y(V.ymax) + 12)
+
+  // bracket at each depth
+  ctx.font = '10px ui-monospace,monospace'
+  for(let d = 2; d <= n; d++){
+    const a = [F[d], F[d+1]]                // p₁/q₁
+    const b = [F[d+1], F[d+2]]              // p₂/q₂
+    const left  = Math.min(a[0]/a[1], b[0]/b[1])
+    const right = Math.max(a[0]/a[1], b[0]/b[1])
+    const y = d - 1
+    ctx.strokeStyle = '#9af'
+    ctx.lineWidth = 1.4
+    ctx.beginPath()
+    ctx.moveTo(V.x(left), V.y(y)); ctx.lineTo(V.x(right), V.y(y))
+    ctx.stroke()
+    // endpoints
+    for(const [p, q] of [a, b]){
+      ctx.fillStyle = '#cfe'
+      ctx.beginPath(); ctx.arc(V.x(p/q), V.y(y), 3, 0, Math.PI*2); ctx.fill()
+      ctx.fillStyle = '#789'
+      ctx.fillText(p + '/' + q, V.x(p/q) - 8, V.y(y) - 6)
+    }
+    const gap = right - left
+    ctx.fillStyle = '#456'
+    ctx.fillText('w = ' + gap.toFixed(4), V.x(right) + 6, V.y(y) + 3)
+  }
+
+  // bracket display in status
+  const a0 = F[n], a1 = F[n+1], a2 = F[n+2]
+  dv.textContent = 'depth ' + n + ' · bracket [' + a0 + '/' + a1 + ', ' + a1 + '/' + a2 + ']'
+
+  ctx.fillStyle = '#456'
+  ctx.fillText('Fibonacci ratio →', V.x(0.72), V.y(0) + 14)
+  ctx.fillText('depth ↑', 6, V.y(V.ymax) + 4)
+}
+addEventListener('resize', draw)
+depth.addEventListener('input', draw)
+draw()
+</script>
