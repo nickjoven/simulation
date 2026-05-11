@@ -51,6 +51,23 @@ shapes" in the visual sense:
 - **Higgs and mass running.** Downstream of the Klein-bottle mode
   selection; treated separately.
 
+## Concept realizations (sister section)
+
+A second four-page sub-catalog at [`concepts/`](concepts/) draws the
+same framework concepts directly as geometry, without function plots.
+The mapping back to derivations is the same.
+
+| # | Concept | Geometric realization | Cites |
+|---|---|---|---|
+| 1 | mode-locking at ρ = p/q | regular q-gon (or {q/p} star) inscribed in S¹ | `circle_map.py`, `born_rule_tongues.py` |
+| 2 | mediant | tip-to-tail sum of two unit phasors at angles 2π·a/b and 2π·c/d points toward (a+c)/(b+d) | `mediant_derivation.md` |
+| 3 | frustration | three spins on a Möbius triangle relax to 120° because π·3 ≢ 0 (mod 2π) | `half_twist_dynamics.md`, `klein_bottle.md` |
+| 4 | Kuramoto order parameter | N arrows on S¹, centroid r·e^{iψ} in the disk; r = 1 ⇒ Einstein, r < 1 ⇒ Schrödinger | `einstein_from_kuramoto.md`, `continuum_limits.md` |
+
+Threshold for adding a concept page is the same as for a shape page,
+but the picture must be a *static geometric figure* (polygon, vector
+sum, lattice, identification), not a function graph.
+
 ## How to extend the catalog
 
 The catalog can grow when a single shape is doing load-bearing work
