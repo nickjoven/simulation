@@ -1,0 +1,164 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>synth · framework signal chain</title>
+<link rel=stylesheet href=synth.css>
+<header>
+  <div class=crumb><a href="../">← simulation</a></div>
+  <h1>synth · framework as a signal chain</h1>
+  <p>Same picture as the <a href="../shapes/">shapes catalog</a>, but the
+  framework is wired up as four modules in series. One signal — N phases
+  on S¹ — flows left to right; every module has knobs (<span class=k>under
+  manipulation</span>) and a scope (<span class=k>under view</span>). The
+  Kuramoto integrator runs continuously; turn knobs and watch the order
+  parameter R re-settle.</p>
+</header>
+
+<main>
+  <div class=toolbar>
+    <button id=play>⏸ pause</button>
+    <button id=reseed>reseed</button>
+    <button id=zero>K = 0</button>
+    <button id=kc>K = 0.6</button>
+    <button id=k1>K = 1.0</button>
+    <span class=gauge>signal · t = <span id=tg>0.0</span> · live N = <span id=nlive>—</span>/<span id=ntot>—</span></span>
+  </div>
+
+  <div class=chain>
+
+    <!-- 1 · VCO -->
+    <section class=module aria-label="VCO module">
+      <div class=head><span class=num>STAGE 1</span><span class=name>VCO</span></div>
+      <div class=sub>natural-rate distribution g(ω). each oscillator gets
+        an ω drawn from this; together they parametrise the
+        <span class=k>mediant</span> generator of the framework.</div>
+      <div class=knob>
+        <label>dist</label>
+        <select id=dist>
+          <option value=lorentzian selected>Lorentzian</option>
+          <option value=uniform>uniform</option>
+          <option value=farey>Farey · 1/q²</option>
+        </select>
+      </div>
+      <div class=knob>
+        <label>spread</label>
+        <input id=spread type=range min=.05 max=.6 step=.005 value=.30>
+        <span class=val id=spreadv>0.300</span>
+      </div>
+      <div class=knob>
+        <label>N</label>
+        <input id=Ninp type=range min=20 max=200 step=10 value=80>
+        <span class=val id=Nv>80</span>
+      </div>
+      <div class=scope><canvas id=scope1 width=240 height=72></canvas></div>
+      <div class=port>signal out: <span class=sig>{ω_k}_{k=1..N}</span></div>
+    </section>
+
+    <div class=cable>▶</div>
+
+    <!-- 2 · COUPLE -->
+    <section class=module aria-label="COUPLE module">
+      <div class=head><span class=num>STAGE 2</span><span class=name>COUPLE</span></div>
+      <div class=sub>Kuramoto kick &nbsp;dθ_k/dt = ω_k + K · R · sin(Ψ − θ_k).
+        K is the cascade-depth axis of the
+        <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/cone_twist_substrate.md">cone-twist substrate</a>.</div>
+      <div class=knob>
+        <label>K</label>
+        <input id=K type=range min=0 max=1.5 step=.005 value=.5>
+        <span class=val id=Kv>0.500</span>
+      </div>
+      <div class=knob>
+        <label>regime</label>
+        <span class=val id=regime style="text-align:left;color:#dfe">—</span>
+      </div>
+      <div class=scope><canvas id=scope2 width=240 height=120></canvas></div>
+      <div class=port>signal out: <span class=sig>{θ_k(t)}</span> · phases</div>
+    </section>
+
+    <div class=cable>▶</div>
+
+    <!-- 3 · TWIST -->
+    <section class=module aria-label="TWIST module">
+      <div class=head><span class=num>STAGE 3</span><span class=name>TWIST</span></div>
+      <div class=sub>Klein-bottle BC selector. half-twist θ → θ + π gates
+        which q-sectors survive — see
+        <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/klein_bottle.md">klein_bottle.md</a>,
+        <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_mobius_boundary.md">half_mobius_boundary.md</a>.</div>
+      <div class=knob>
+        <label>BC</label>
+        <select id=bc>
+          <option value=periodic selected>periodic · all q</option>
+          <option value=mobius>Möbius · q odd</option>
+          <option value=klein>Klein · q ∈ {2, 3}</option>
+          <option value="half-mobius">half-Möbius · q ≡ 1 (mod 4)</option>
+        </select>
+      </div>
+      <div class=scope><canvas id=scope3 width=240 height=120></canvas></div>
+      <div class=port>signal out: <span class=sig>{θ_k : q_k allowed}</span></div>
+    </section>
+
+    <div class=cable>▶</div>
+
+    <!-- 4 · ORDER -->
+    <section class=module aria-label="ORDER module">
+      <div class=head><span class=num>STAGE 4</span><span class=name>ORDER</span></div>
+      <div class=sub>weighted mean field &nbsp;R · e^{iΨ} = (1/n) Σ e^{iθ_k}
+        over the surviving sector. R = 1 →
+        <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/einstein_from_kuramoto.md">Einstein</a>;
+        R &lt; 1 →
+        <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/continuum_limits.md">Schrödinger</a>.</div>
+      <div class=knob>
+        <label>R</label>
+        <span class=val id=R style="text-align:left;color:#fc9">0.000</span>
+      </div>
+      <div class=knob>
+        <label>Ψ</label>
+        <span class=val id=Psi style="text-align:left;color:#9af">0.0°</span>
+      </div>
+      <div class=scope><canvas id=scope4 width=240 height=200></canvas></div>
+      <div class=port>signal out: <span class=sig>R · e^{iΨ}</span> · scalar</div>
+    </section>
+
+  </div>
+
+  <footer>
+    <p>each module's <span class=k>scope</span> is a window onto the same
+    running signal at a different stage. the integrator is one
+    requestAnimationFrame loop; nothing is faked. patch a different
+    distribution, push K through K_c ≈ 0.6, gate the BC at TWIST, watch
+    R re-settle.</p>
+
+    <div class=grid>
+      <div>
+        <h3>cited derivations</h3>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/einstein_from_kuramoto.md">einstein_from_kuramoto.md</a> — K = 1 limit</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/continuum_limits.md">continuum_limits.md</a> — K &lt; 1 limit</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/klein_bottle.md">klein_bottle.md</a> — Z/2 BC</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_mobius_boundary.md">half_mobius_boundary.md</a> — Z/4 BC</p>
+      </div>
+      <div>
+        <h3>new substrate work (post-fetch)</h3>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/wave_particle_substrate.md">wave_particle_substrate.md</a> — 4-object framework synthesis</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/cone_twist_substrate.md">cone_twist_substrate.md</a> — bicone target manifold</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/time_axis_split.md">time_axis_split.md</a> — clock vs arrow</p>
+        <p>· <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/sine_gordon_substrate.md">sine_gordon_substrate.md</a> — locked-state effective theory</p>
+      </div>
+      <div>
+        <h3>related apps upstream</h3>
+        <p>· <a href="https://nickjoven.github.io/harmonics/prototype/">prototype/</a> — full Kuramoto wall + audio</p>
+        <p>· <a href="https://nickjoven.github.io/harmonics/docs/knobs/phase.html">knobs/phase</a></p>
+        <p>· <a href="https://nickjoven.github.io/harmonics/docs/knobs/coupling.html">knobs/coupling</a></p>
+        <p>· <a href="https://nickjoven.github.io/harmonics/docs/knobs/frames.html">knobs/frames</a></p>
+      </div>
+      <div>
+        <h3>roadmap</h3>
+        <p>· LFO module — slow K modulation across the K-zoo</p>
+        <p>· CLOCK module — split clock-axis vs arrow-axis</p>
+        <p>· KINK scope — sine-Gordon kink density on the locked manifold</p>
+      </div>
+    </div>
+
+    <p style="margin-top:1rem">v0.1 · vanilla canvas-2d · no external deps · MIT</p>
+  </footer>
+</main>
+
+<script type=module src=synth.js></script>
