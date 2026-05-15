@@ -1,0 +1,158 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>concept 4 · Kuramoto order parameter</title>
+<link rel=stylesheet href=../../style.css>
+<main>
+<nav class=crumb><a href="../">← concepts</a> · <span class=c>4 / 4</span></nav>
+<h1>Kuramoto order — r·e^{iψ} = (1/N) Σ e^{iθₖ}</h1>
+
+<canvas id=cv data-ratio=.85></canvas>
+<div class=row>
+  <label for=K>K</label>
+  <input id=K type=range min=0 max=2 step=.01 value=.8>
+  <span id=Kv class=k>K = 0.80</span>
+  &nbsp;
+  <label for=N>N</label>
+  <input id=N type=range min=4 max=48 step=2 value=24>
+  <span id=Nv class=k>N = 24</span>
+  &nbsp;
+  <button id=reseed style="background:#1a2230;color:#cfe;border:1px solid #2d3a4d;padding:.2rem .6rem;cursor:pointer;font:11px ui-monospace,monospace">re-seed</button>
+</div>
+
+<p class=eqn>order parameter:    r · e^{iψ}  =  (1/N) · Σₖ e^{iθₖ}
+phase distribution:  θₖ  =  ψ  +  (1 − K) · ηₖ ,    ηₖ ∼ uniform[−π, π]
+|r| ∈ [0, 1]:  0 = incoherent,  1 = full synchronization (Einstein limit)</p>
+
+<h2>identity</h2>
+<p>Put N oscillators on the circle. Their <i>centroid</i> in the disk
+is a single complex number r·e^{iψ}: <span class=m>r</span> tells you
+how synchronized they are, <span class=m>ψ</span> tells you the mean
+phase. r = 0 means the arrows cancel — every direction equally
+occupied, no coherence. r = 1 means every arrow points the same way —
+total sync. Real systems hover somewhere in between.</p>
+
+<h2>role in the framework</h2>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b class=k>Continuum limit at K = 1.</b> When r = 1, every
+  oscillator is locked. The rational field equation collapses to the
+  Einstein field equations — the unique outcome by Lovelock's theorem.
+  See <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/einstein_from_kuramoto.md">einstein_from_kuramoto.md</a>.</li>
+  <li><b class=k>Continuum limit at K &lt; 1.</b> When r &lt; 1, gaps
+  remain. The continuum limit gives Schrödinger. Same equation, different
+  regime. See <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/continuum_limits.md">continuum_limits.md</a>.</li>
+  <li><b class=k>Born rule.</b> P(state k) = r_k² is the disk-centroid
+  picture of <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/born_rule.md">born_rule.md</a>:
+  the basin measure is the squared amplitude of the synchronization
+  vector toward attractor k.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/einstein_from_kuramoto.md">einstein_from_kuramoto.md</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/continuum_limits.md">continuum_limits.md</a>,
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/born_rule.md">born_rule.md</a></p>
+
+<footer>
+  <a href="../3/">← frustration triangle</a> · <a href="../">concepts</a> · <a href="../../">shape catalog</a>
+</footer>
+</main>
+<script type=module>
+import { fit } from '../../plot.js'
+const cv = document.getElementById('cv')
+const K  = document.getElementById('K')
+const N  = document.getElementById('N')
+const Kv = document.getElementById('Kv')
+const Nv = document.getElementById('Nv')
+const reseed = document.getElementById('reseed')
+
+// pseudo-random uniform[-π, π] noises, fixed per seed
+let seed = 1
+function rng(){ seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff }
+let noise = []
+function reseedNoise(n){
+  noise = []
+  for(let i = 0; i < n; i++) noise.push((rng()*2 - 1) * Math.PI)
+}
+reseedNoise(48)
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  ctx.fillStyle = '#04070a'; ctx.fillRect(0, 0, w, h)
+
+  const k = +K.value
+  const n = +N.value
+  Kv.textContent = 'K = ' + k.toFixed(2)
+  Nv.textContent = 'N = ' + n
+
+  const cx = w/2, cy = h/2
+  const R = Math.min(w, h) * 0.38
+
+  // background disk + unit circle
+  ctx.strokeStyle = '#1a2230'
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke()
+  // |r| reference circles
+  ctx.strokeStyle = '#0e151c'
+  for(const f of [0.25, 0.5, 0.75]){
+    ctx.beginPath(); ctx.arc(cx, cy, R*f, 0, Math.PI*2); ctx.stroke()
+  }
+
+  // phases: θ_k = ψ + (1 - K) · η_k. We can take ψ = 0 wlog.
+  const spread = 1 - k
+  let sx = 0, sy = 0
+  for(let i = 0; i < n; i++){
+    const θ = spread * noise[i]
+    // unit phasor on the circle (small arrow)
+    const ang = θ
+    const px = cx + R*Math.cos(ang)
+    const py = cy - R*Math.sin(ang)
+    // dot on the circle
+    ctx.fillStyle = '#9cf'
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill()
+    // tiny tick into the disk
+    ctx.strokeStyle = '#2d3a4d'
+    ctx.beginPath()
+    ctx.moveTo(cx + (R-12)*Math.cos(ang), cy - (R-12)*Math.sin(ang))
+    ctx.lineTo(px, py)
+    ctx.stroke()
+    sx += Math.cos(ang); sy += Math.sin(ang)
+  }
+  sx /= n; sy /= n
+  const r = Math.hypot(sx, sy)
+  const ψ = Math.atan2(sy, sx)
+
+  // resultant vector r·e^{iψ} from origin
+  ctx.strokeStyle = '#fc9'; ctx.fillStyle = '#fc9'
+  ctx.lineWidth = 2.4
+  const tipX = cx + R*sx, tipY = cy - R*sy
+  ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(tipX, tipY); ctx.stroke()
+  const ah = 9
+  ctx.beginPath()
+  ctx.moveTo(tipX, tipY)
+  ctx.lineTo(tipX - ah*Math.cos(ψ - 0.4), tipY + ah*Math.sin(ψ - 0.4))
+  ctx.lineTo(tipX - ah*Math.cos(ψ + 0.4), tipY + ah*Math.sin(ψ + 0.4))
+  ctx.closePath(); ctx.fill()
+
+  // centre dot
+  ctx.fillStyle = '#456'
+  ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI*2); ctx.fill()
+
+  // status text
+  ctx.fillStyle = '#dfe'
+  ctx.font = '12px ui-monospace,monospace'
+  ctx.fillText('|r| = ' + r.toFixed(3), 18, 22)
+  ctx.fillStyle = '#789'
+  ctx.font = '10px ui-monospace,monospace'
+  ctx.fillText(r > 0.99 ? 'fully synchronized (Einstein limit)'
+            :  r < 0.05 ? 'incoherent (Σ ≈ 0)'
+            :              'partial synchronization (Schrödinger regime)',
+            18, 38)
+  ctx.fillStyle = '#456'
+  ctx.fillText('ψ = ' + (ψ*180/Math.PI).toFixed(1) + '°', 18, 54)
+}
+
+addEventListener('resize', draw)
+K.addEventListener('input', draw)
+N.addEventListener('input', () => { reseedNoise(+N.value); draw() })
+reseed.addEventListener('click', () => { seed = Math.floor(Math.random()*1e9) + 1; reseedNoise(48); draw() })
+draw()
+</script>

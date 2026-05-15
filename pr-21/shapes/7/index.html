@@ -1,0 +1,114 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>7 · Klein bottle</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>7 / 8</span></nav>
+<h1>Klein bottle — two half-twists</h1>
+
+<canvas id=cv data-ratio=.7></canvas>
+<div class=row>
+  <label for=u>spin u</label>
+  <input id=u type=range min=0 max=1 step=.005 value=0>
+  <span id=uv class=k>u = 0.00</span>
+</div>
+
+<p class=eqn>K² = S¹ × S¹  /  ( (φ, θ) ∼ (φ+π, −θ) )
+                              ↑ Möbius identification in one direction
+4 modes survive at (q₂, q₃) = (2, 3) under Z/2 ⊕ Z/2 (XOR selection).</p>
+
+<h2>identity</h2>
+<p>Take a torus, then glue one pair of edges with a flip. The result
+is the Klein bottle: a closed non-orientable surface. Equivalently:
+two Möbius strips glued along their boundaries. The single number that
+classifies it is <span class=m>Z/2</span> for orientability, plus a
+<span class=m>Z/2 ⊕ Z/2</span> for the (q₂, q₃) = (2, 3) mode parity.</p>
+
+<h2>role in the framework</h2>
+<p>The Klein-bottle topology selects exactly four mode classes from
+the Stern-Brocot tree at the smallest denominators:</p>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b class=k>q₂² − 1 = q₃</b> (2² − 1 = 3): the cross-link
+  identity that forces (q₂, q₃) to be (2, 3).</li>
+  <li><b class=k>q₃² − 1 = q₂³</b> (3² − 1 = 2³): the dual identity.
+  Both must hold; this picks (2, 3) uniquely from the integers.</li>
+  <li><b class=k>Standard Model.</b> The four mode sectors map onto
+  the gauge group SU(3) × SU(2) × U(1) and produce three generations.
+  See <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/klein_bottle.md">klein_bottle.md</a>.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/klein_bottle.md">klein_bottle.md</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/mobius_container.md">mobius_container.md</a>,
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/half_mobius_boundary.md">half_mobius_boundary.md</a></p>
+
+<footer>
+  <a href="../6/">← Farey</a> · <a href="../">catalog</a> · <a href="../8/">next: golden gap →</a>
+</footer>
+</main>
+<script type=module>
+import { fit } from '../plot.js'
+const cv = document.getElementById('cv')
+const u  = document.getElementById('u')
+const uv = document.getElementById('uv')
+
+// We draw the Klein bottle's "figure-8" immersion as a stack of
+// figure-8 cross-sections rotated around an axis. As φ goes 0→2π, the
+// figure-8 rotates by π — that is the half-twist.
+function project(p){
+  // simple isometric-ish projection
+  const a = 0.55, b = -0.35
+  return { x: p[0] + p[2]*a*0.6, y: p[1] + p[2]*b }
+}
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  ctx.fillStyle = '#04070a'
+  ctx.fillRect(0, 0, w, h)
+
+  const cx = w/2, cy = h/2 + 8
+  const spin = +u.value
+  uv.textContent = 'u = ' + spin.toFixed(2)
+
+  // Big loop parameter φ ∈ [0, 2π], cross-section parameter θ ∈ [0, 2π]
+  const Nφ = 64, Nθ = 36
+  const R = Math.min(w, h) * 0.34
+  const r = R * 0.45
+
+  // grid
+  ctx.lineWidth = 1
+  for(let i = 0; i < Nφ; i++){
+    const φ = (i/Nφ + spin) * 2*Math.PI
+    // half-twist: cross-section rotates by φ/2 (so full 2π → π)
+    const α = φ/2
+    // colour from φ
+    const t = i/Nφ
+    ctx.strokeStyle = `rgba(${110 + 80*Math.cos(2*Math.PI*t)|0}, ${200 - 40*Math.cos(2*Math.PI*t)|0}, ${230}, .9)`
+    ctx.beginPath()
+    for(let j = 0; j <= Nθ; j++){
+      const θ = (j/Nθ) * 2*Math.PI
+      // figure-8 cross-section: x = sin θ, y = sin θ · cos θ (half lemniscate)
+      // rotated by α in (x, y), then translated to big circle radius R(φ)
+      const lx = Math.sin(θ) * 0.7
+      const ly = Math.sin(θ) * Math.cos(θ) * 1.0
+      const xr =  lx*Math.cos(α) - ly*Math.sin(α)
+      const yr =  lx*Math.sin(α) + ly*Math.cos(α)
+      const X = (R + r * xr) * Math.cos(φ)
+      const Y =  r * yr
+      const Z = (R + r * xr) * Math.sin(φ)
+      const p = project([X, Y, Z])
+      if(j === 0) ctx.moveTo(cx + p.x, cy + p.y)
+      else        ctx.lineTo(cx + p.x, cy + p.y)
+    }
+    ctx.stroke()
+  }
+  // axis hint
+  ctx.fillStyle = '#456'
+  ctx.font = '10px ui-monospace,monospace'
+  ctx.fillText('immersion shown — the actual Klein bottle is non-orientable in 3D', 14, h - 10)
+}
+addEventListener('resize', draw)
+u.addEventListener('input', draw)
+draw()
+</script>
