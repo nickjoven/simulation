@@ -1,0 +1,64 @@
+:root{color-scheme:dark}
+html,body{margin:0;min-height:100%;background:#000;color:#9cf;font:12px/1.5 ui-monospace,monospace}
+header{padding:1.2rem 1.4rem .4rem;max-width:1280px;margin:0 auto}
+header h1{font-size:1rem;font-weight:400;color:#cfe;margin:0;letter-spacing:.04em}
+header p{margin:.3rem 0 0;color:#678}
+header a{color:#cfe;text-decoration:none;border-bottom:1px solid #2d3a4d}
+header a:hover{color:#fff;border-bottom-color:#cfe}
+.crumb{color:#456;font-size:11px;margin-bottom:.4rem}
+.crumb a{color:#678;border:0}
+.crumb a:hover{color:#cfe}
+
+main{max-width:1280px;margin:0 auto;padding:1rem 1.4rem 4rem}
+
+.toolbar{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;
+  background:#06090d;border:1px solid #1a2230;padding:.5rem .7rem;border-radius:3px;margin-bottom:1rem}
+.toolbar button{background:#1a2230;color:#cfe;border:1px solid #2d3a4d;
+  padding:.25rem .7rem;font:11px ui-monospace,monospace;cursor:pointer;border-radius:2px}
+.toolbar button:hover{background:#243040;color:#fff}
+.toolbar .gauge{color:#dfe;margin-left:auto}
+.toolbar .gauge span{color:#fc9}
+
+/* signal chain */
+.chain{display:flex;gap:0;align-items:stretch;flex-wrap:wrap}
+
+.module{flex:1 1 240px;min-width:240px;background:#04070a;border:1px solid #1a2230;
+  border-radius:3px;padding:.6rem .7rem .8rem;margin-bottom:.6rem;
+  display:flex;flex-direction:column}
+.module .head{display:flex;align-items:baseline;justify-content:space-between;
+  border-bottom:1px dashed #1a2230;padding-bottom:.3rem;margin-bottom:.5rem}
+.module .head .num{color:#456;font-size:10px;letter-spacing:.1em}
+.module .head .name{color:#cfe;font-size:13px;letter-spacing:.05em}
+.module .sub{color:#678;font-size:11px;margin-bottom:.4rem;line-height:1.4}
+
+.knob{display:flex;align-items:center;gap:.5rem;margin:.25rem 0;color:#9cf}
+.knob label{color:#678;font-size:10px;letter-spacing:.05em;min-width:38px;text-transform:uppercase}
+.knob input[type=range]{accent-color:#cfe;flex:1;min-width:60px}
+.knob select{background:#06090d;color:#dfe;border:1px solid #2d3a4d;
+  font:11px ui-monospace,monospace;padding:.15rem .3rem;flex:1}
+.knob .val{color:#fc9;font-size:11px;min-width:54px;text-align:right;font-variant-numeric:tabular-nums}
+
+.scope{margin-top:.5rem;background:#02050a;border:1px solid #131a23;border-radius:2px}
+.scope canvas{display:block;width:100%;height:auto}
+
+.port{color:#456;font-size:10px;text-align:right;margin-top:.4rem;letter-spacing:.05em}
+.port .sig{color:#9cf}
+
+.cable{display:flex;align-items:center;justify-content:center;color:#456;font-size:14px;
+  flex:0 0 14px;margin-bottom:.6rem}
+
+@media (max-width:1100px){
+  .chain{flex-direction:column}
+  .module{margin-bottom:.4rem}
+  .cable{transform:rotate(90deg);margin:0 0 .4rem 0}
+}
+
+footer{max-width:1280px;margin:1.6rem auto 0;padding:1rem 1.4rem 0;
+  border-top:1px dashed #1a2230;color:#456;font-size:11px}
+footer a{color:#678;border:0}
+footer a:hover{color:#cfe}
+footer .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;margin-top:.6rem}
+footer .grid h3{color:#cfe;font-weight:400;font-size:11px;letter-spacing:.05em;margin:0 0 .3rem}
+footer .grid p{margin:.2rem 0}
+.k{color:#fc9}
+.c{color:#789}
