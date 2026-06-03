@@ -1,0 +1,168 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>concept 2 · mediant geometry</title>
+<link rel=stylesheet href=../../style.css>
+<main>
+<nav class=crumb><a href="../">← concepts</a> · <span class=c>2 / 4</span></nav>
+<h1>mediant — a/b ⊕ c/d = (a+c)/(b+d), as vectors</h1>
+
+<canvas id=cv data-ratio=.95></canvas>
+<div class=row>
+  <label for=pair>pair</label>
+  <select id=pair>
+    <option value="1/2,1/3">1/2 ⊕ 1/3 = 2/5</option>
+    <option value="1/3,2/5">1/3 ⊕ 2/5 = 3/8</option>
+    <option value="2/5,3/8">2/5 ⊕ 3/8 = 5/13</option>
+    <option value="3/8,5/13">3/8 ⊕ 5/13 = 8/21</option>
+    <option value="0/1,1/1">0/1 ⊕ 1/1 = 1/2</option>
+    <option value="1/2,2/3">1/2 ⊕ 2/3 = 3/5</option>
+  </select>
+  &nbsp;<span id=info class=k>1/2 ⊕ 1/3 = 2/5</span>
+</div>
+
+<p class=eqn>Stern (1858), Brocot (1861):   a/b ⊕ c/d  =  (a+c)/(b+d)
+neighbours a/b &lt; c/d in some F_n  ⇒  bc − ad = 1   (unimodular)
+the mediant is the unique simplest fraction strictly between them.</p>
+
+<h2>identity</h2>
+<p>Place two unit phasors at angles 2π·a/b and 2π·c/d on the circle.
+Their tip-to-tail sum is a vector whose angle lies <i>between</i>
+those two — specifically, in the angular wedge containing 2π·(a+c)/(b+d).
+That is the mediant. The picture is the proof that the mediant lives
+strictly between its parents.</p>
+
+<p>The unimodular condition bc − ad = 1 means the two unit phasors,
+combined with the origin, form a triangle of area exactly 1/2. The
+mediant's denominator b + d is the magnitude of the diagonal of the
+parallelogram they span — that is why deeper-tree fractions have
+larger denominators and shorter resultant vectors.</p>
+
+<h2>role in the framework</h2>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b class=k>Energy + stability ⇒ mediant.</b> The mediant is not
+  assumed. It is the unique combining rule that conserves energy and
+  preserves Arnold-tongue stability at all depths. See
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/mediant_derivation.md">mediant_derivation.md</a>.</li>
+  <li><b class=k>SL(2, ℤ) generation.</b> The matrix [[a,c],[b,d]] with
+  bc − ad = 1 lives in SL(2, ℤ); the mediant is the addition of its
+  columns. Repeated mediants tile the Stern-Brocot tree, whose
+  boundary is ℚ ∪ {∞} = ∂ℍ.</li>
+  <li><b class=k>Three dimensions.</b> SL(2, ℝ) is the continuum
+  closure of SL(2, ℤ). Its dimension is 3. See
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/three_dimensions.md">three_dimensions.md</a>.</li>
+</ul>
+
+<p class=kv><b>derivation</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/mediant_derivation.md">mediant_derivation.md</a>
+  &nbsp;·&nbsp; <b>related</b> ·
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/farey_partition.md">farey_partition.md</a>,
+  <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/three_dimensions.md">three_dimensions.md</a></p>
+
+<footer>
+  <a href="../1/">← locking</a> · <a href="../">concepts</a> · <a href="../3/">next: frustration triangle →</a>
+</footer>
+</main>
+<script type=module>
+import { fit } from '../../plot.js'
+const cv   = document.getElementById('cv')
+const sel  = document.getElementById('pair')
+const info = document.getElementById('info')
+
+function parsePair(s){
+  const [a, b] = s.split(',').map(t => t.split('/').map(Number))
+  return { a, b, med: [a[0]+b[0], a[1]+b[1]] }
+}
+
+function arrow(ctx, x0, y0, x1, y1, color, width = 1.8){
+  ctx.save()
+  ctx.strokeStyle = color; ctx.fillStyle = color; ctx.lineWidth = width
+  ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1); ctx.stroke()
+  const ang = Math.atan2(y1 - y0, x1 - x0)
+  const ah = 8
+  ctx.beginPath()
+  ctx.moveTo(x1, y1)
+  ctx.lineTo(x1 - ah*Math.cos(ang - 0.4), y1 - ah*Math.sin(ang - 0.4))
+  ctx.lineTo(x1 - ah*Math.cos(ang + 0.4), y1 - ah*Math.sin(ang + 0.4))
+  ctx.closePath(); ctx.fill()
+  ctx.restore()
+}
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  ctx.fillStyle = '#04070a'; ctx.fillRect(0, 0, w, h)
+
+  const { a, b, med } = parsePair(sel.value)
+  info.textContent = `${a[0]}/${a[1]} ⊕ ${b[0]}/${b[1]} = ${med[0]}/${med[1]}`
+
+  const cx = w/2, cy = h/2 + 12
+  const R = Math.min(w, h) * 0.36
+
+  // background circle and grid spokes
+  ctx.strokeStyle = '#1a2230'
+  ctx.beginPath(); ctx.arc(cx, cy, R, 0, Math.PI*2); ctx.stroke()
+
+  // helper: rotate so 0 is at "east" (positive-x), angle increases counter-clockwise
+  const ang = f => 2*Math.PI*f
+  const pt  = f => ({ x: cx + R*Math.cos(ang(f)), y: cy - R*Math.sin(ang(f)) })
+
+  // parent fractions
+  const pa = pt(a[0]/a[1])
+  const pb = pt(b[0]/b[1])
+  const pm = pt(med[0]/med[1])
+
+  // light reference spokes for both parents and the mediant
+  ctx.strokeStyle = '#243040'; ctx.setLineDash([2, 3])
+  for(const p of [pa, pb, pm]){
+    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(p.x, p.y); ctx.stroke()
+  }
+  ctx.setLineDash([])
+
+  // parent vectors (unit phasors)
+  arrow(ctx, cx, cy, pa.x, pa.y, '#fc9')
+  arrow(ctx, cx, cy, pb.x, pb.y, '#9af')
+
+  // parallelogram: cx + (pa - cx) + (pb - cx)
+  const sumX = pa.x + pb.x - cx
+  const sumY = pa.y + pb.y - cy
+
+  ctx.strokeStyle = '#3a4456'; ctx.setLineDash([3, 4])
+  ctx.beginPath()
+  ctx.moveTo(pa.x, pa.y); ctx.lineTo(sumX, sumY)
+  ctx.moveTo(pb.x, pb.y); ctx.lineTo(sumX, sumY)
+  ctx.stroke(); ctx.setLineDash([])
+
+  // resultant vector (sum) — direction is what matters
+  arrow(ctx, cx, cy, sumX, sumY, '#cfe', 2)
+
+  // mark the mediant on the circle
+  ctx.fillStyle = '#fc9'
+  ctx.beginPath(); ctx.arc(pa.x, pa.y, 5, 0, Math.PI*2); ctx.fill()
+  ctx.fillStyle = '#9af'
+  ctx.beginPath(); ctx.arc(pb.x, pb.y, 5, 0, Math.PI*2); ctx.fill()
+  ctx.fillStyle = '#cfe'
+  ctx.beginPath(); ctx.arc(pm.x, pm.y, 5, 0, Math.PI*2); ctx.fill()
+
+  // labels on the circle
+  ctx.font = '11px ui-monospace,monospace'
+  ctx.fillStyle = '#fc9'
+  ctx.fillText(`${a[0]}/${a[1]}`, pa.x + 10, pa.y + 4)
+  ctx.fillStyle = '#9af'
+  ctx.fillText(`${b[0]}/${b[1]}`, pb.x + 10, pb.y + 4)
+  ctx.fillStyle = '#dfe'
+  ctx.fillText(`${med[0]}/${med[1]}  (mediant)`, pm.x + 10, pm.y + 4)
+
+  // resultant label, near its tip
+  ctx.fillStyle = '#cfe'
+  ctx.fillText('sum points toward the mediant', sumX + 8, sumY)
+
+  // determinant note
+  const det = b[0]*a[1] - a[0]*b[1]    // bc - ad with a/b and c/d ordered
+  ctx.fillStyle = '#456'
+  ctx.font = '10px ui-monospace,monospace'
+  ctx.fillText(`unimodular: |bc − ad| = ${Math.abs(det)}  (= 1 for Farey neighbours)`,
+    20, h - 14)
+}
+addEventListener('resize', draw)
+sel.addEventListener('input', draw)
+draw()
+</script>

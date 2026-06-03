@@ -1,0 +1,77 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>1 · parabola · y = x²</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>1 / 8</span></nav>
+<h1>parabola — y = x² + μ</h1>
+
+<canvas id=cv data-ratio=.62></canvas>
+<div class=row>
+  <label for=mu>μ</label>
+  <input id=mu type=range min=-1 max=1 step=.01 value=-.36>
+  <span id=muv class=k>μ = −0.36</span>
+</div>
+
+<p class=eqn>x² + μ = 0   ⇒   x = ±√(−μ)   for μ &lt; 0
+                              0           for μ = 0   (saddle-node)
+                              (no real root) for μ &gt; 0</p>
+
+<h2>identity</h2>
+<p>The parabola is the lowest-degree polynomial that has a minimum.
+Slide μ down: two roots open out like ±√(−μ). Slide μ up: they collide
+at the origin and vanish. That collision is the
+<span class=k>saddle-node bifurcation</span>, the only generic way a
+fixed point can be born or destroyed on the line.</p>
+
+<h2>role in the framework</h2>
+<p>The square-root branch <span class=m>Δx ∝ √ε</span> is the source of
+the exponent <b>2</b> in the Born rule. At every Arnold-tongue boundary
+of the circle map, the stable and unstable fixed points sit at
+<span class=m>±√ε</span>; the tongue width is ∝ Δx² = |ψ|². The
+exponent is not a postulate — it is the structural stability of the
+saddle-node normal form.</p>
+
+<p class=kv><b>derivation</b> · <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/born_rule.md">born_rule.md</a>
+&nbsp;·&nbsp; <b>related</b> · <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/a1_from_saddle_node.md">a1_from_saddle_node.md</a>,
+<a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/noise_dressed_parabola.py">noise_dressed_parabola.py</a></p>
+
+<footer>
+  <a href="../">catalog</a> · <a href="../2/">next: sine →</a>
+</footer>
+</main>
+<script type=module>
+import { fit, view, axes, plot, dot, label, clear } from '../plot.js'
+const cv = document.getElementById('cv')
+const mu = document.getElementById('mu')
+const muv = document.getElementById('muv')
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  clear(ctx, w, h)
+  const V = view(w, h, -1.4, 1.4, -1.0, 1.4, 22)
+  axes(ctx, V, { gridStep: .5 })
+  const m = +mu.value
+  muv.textContent = 'μ = ' + (m >= 0 ? ' ' : '−') + Math.abs(m).toFixed(2)
+  // family: ghost parabolas at μ = -.8, 0, .6
+  for(const g of [-.8, 0, .6]){
+    plot(ctx, V, x => x*x + g, { color: '#1a2230', width: 1 })
+  }
+  // active parabola
+  plot(ctx, V, x => x*x + m, { color: '#cfe', width: 2 })
+  // roots
+  if(m < 0){
+    const r = Math.sqrt(-m)
+    dot(ctx, V, -r, 0, { color: '#fc9' })
+    dot(ctx, V,  r, 0, { color: '#fc9' })
+    label(ctx, V, -r, 0, '−√(−μ)', { color: '#fc9' })
+    label(ctx, V,  r, 0,  '+√(−μ)', { color: '#fc9' })
+  } else if(m === 0){
+    dot(ctx, V, 0, 0, { color: '#f99', r: 4 })
+    label(ctx, V, 0, 0, 'saddle-node', { color: '#f99' })
+  }
+}
+addEventListener('resize', draw)
+mu.addEventListener('input', draw)
+draw()
+</script>

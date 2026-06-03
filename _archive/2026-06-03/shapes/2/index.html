@@ -1,0 +1,70 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>2 · sine · y = sin x</title>
+<link rel=stylesheet href=../style.css>
+<main>
+<nav class=crumb><a href="../">← shapes</a> · <span class=c>2 / 8</span></nav>
+<h1>sine — y = sin(2π θ)</h1>
+
+<canvas id=cv data-ratio=.55></canvas>
+<div class=row>
+  <label for=K>K</label>
+  <input id=K type=range min=0 max=2 step=.01 value=1>
+  <span id=Kv class=k>K = 1.00</span>
+</div>
+
+<p class=eqn>θ' = θ + Ω − (K / 2π) · sin(2π θ)        (the circle map)</p>
+
+<h2>identity</h2>
+<p>One period, one bump up, one bump down, exactly antisymmetric about
+the half-turn. That symmetry — sin(θ + π) = −sin θ — is why a half-twist
+boundary condition (next page) leaves the equation intact while flipping
+the sign of every locked state.</p>
+
+<h2>role in the framework</h2>
+<p>The coupling term in every oscillator equation in the framework is
+<span class=m>sin(ψ − θ)</span>: Kuramoto, the circle map, the Stribeck
+chain. Two consequences:</p>
+<ul style="color:#9cf;padding-left:1.2rem">
+  <li><b class=k>Arnold tongues.</b> The factor K · sin folds the
+  rotation number onto rationals p/q in width ∝ K^q / q² near K = 0.</li>
+  <li><b class=k>Half-period symmetry.</b> sin(2π(θ+1/2)) = −sin(2π θ).
+  The k → k + 1/2 shift of the orbital quantum number on a half-Möbius
+  ring is exactly this identity in disguise.</li>
+</ul>
+
+<p class=kv><b>derivation</b> · <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/circle_map.py">circle_map.py</a>
+&nbsp;·&nbsp; <b>related</b> · <a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/beta_from_tongues.md">beta_from_tongues.md</a>,
+<a href="https://github.com/nickjoven/harmonics/blob/main/sync_cost/derivations/einstein_from_kuramoto.md">einstein_from_kuramoto.md</a></p>
+
+<footer>
+  <a href="../1/">← parabola</a> · <a href="../">catalog</a> · <a href="../3/">next: half-twist →</a>
+</footer>
+</main>
+<script type=module>
+import { fit, view, axes, plot, dot, clear } from '../plot.js'
+const cv = document.getElementById('cv')
+const K  = document.getElementById('K')
+const Kv = document.getElementById('Kv')
+
+function draw(){
+  const { ctx, w, h } = fit(cv)
+  clear(ctx, w, h)
+  const V = view(w, h, 0, 2, -1.2, 1.2, 22)
+  axes(ctx, V, { gridStep: .25 })
+  const k = +K.value
+  Kv.textContent = 'K = ' + k.toFixed(2)
+  // identity line
+  plot(ctx, V, t => t - 1, { color: '#1a2230', width: 1, dash: [3,3] })
+  // bare sine
+  plot(ctx, V, t => Math.sin(2*Math.PI*t), { color: '#243040', width: 1.2 })
+  // K-scaled sine (the circle-map kick)
+  plot(ctx, V, t => (k/(2*Math.PI)) * Math.sin(2*Math.PI*t) * 4, { color: '#cfe', width: 2 })
+  // half-period antisymmetry marker
+  dot(ctx, V, 0.25, 1, { color: '#fc9' })
+  dot(ctx, V, 0.75, -1, { color: '#fc9' })
+}
+addEventListener('resize', draw)
+K.addEventListener('input', draw)
+draw()
+</script>

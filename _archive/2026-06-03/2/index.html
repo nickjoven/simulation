@@ -1,0 +1,157 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>whispering gallery · jₗ(kr)·Y_ℓ±ℓ</title>
+<style>
+  html,body{margin:0;height:100%;background:#000;color:#9cf;font:11px/1.35 ui-monospace,monospace;overflow:hidden}
+  #hud{position:fixed;top:8px;left:10px;pointer-events:none;white-space:pre;mix-blend-mode:screen;opacity:.85}
+  canvas{display:block}
+  .lil-gui{--background-color:#0a0f14;--text-color:#9cf;--title-background-color:#111;--widget-color:#1a2230;--hover-color:#243040;--focus-color:#2d3a4d;--number-color:#cfe;--string-color:#fc9;--font-size:11px;--input-font-size:11px}
+</style>
+<div id=hud></div>
+<script type=importmap>
+{"imports":{
+  "three":"https://unpkg.com/three@0.160.0/build/three.module.js",
+  "three/addons/":"https://unpkg.com/three@0.160.0/examples/jsm/",
+  "lil-gui":"https://unpkg.com/lil-gui@0.19.2/dist/lil-gui.esm.js"
+}}
+</script>
+<script type=module>
+import * as THREE from 'three'
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js'
+import GUI from 'lil-gui'
+import { VS, FS_PRELUDE, FS_MARCH, ALPHA, bakeMode, defaultPalette } from '../common.js'
+
+// traveling: ψ = jₗ(kr)·sinℓ(θ')·cos(ℓφ'−ωt)
+//          = Y_ℓ^ℓ(p̂)·cos(ωt) + Y_ℓ^{-ℓ}(p̂)·sin(ωt)   (scaled by jₗ and norm)
+// standing: ψ = Y_ℓ^ℓ(p̂) · cos(ωt)
+// Bake volC = jₗ·Y_ℓ^ℓ , volS = jₗ·Y_ℓ^{-ℓ}  in mode frame.
+// Rt : world → mode frame.
+
+const EXTRA = `
+uniform sampler3D volC;
+uniform sampler3D volS;
+uniform mat3  Rt;
+uniform int   travel;
+`
+const PSI = `
+vec3 pm = Rt * p;
+float a = V(volC, pm);
+float b = V(volS, pm);
+psi = (travel == 1)
+  ? (a * cos(w*t) + b * sin(w*t))
+  : (a * cos(w*t));
+`
+const fs = FS_PRELUDE + FS_MARCH(EXTRA, PSI)
+
+const scene = new THREE.Scene()
+const cam = new THREE.PerspectiveCamera(35, innerWidth/innerHeight, .1, 100)
+cam.position.set(0, 0, 3.4)
+const rnd = new THREE.WebGLRenderer({antialias:true})
+rnd.setSize(innerWidth, innerHeight)
+rnd.setPixelRatio(Math.min(devicePixelRatio, 2))
+document.body.append(rnd.domElement)
+addEventListener('resize', ()=>{
+  cam.aspect = innerWidth/innerHeight; cam.updateProjectionMatrix()
+  rnd.setSize(innerWidth, innerHeight)
+})
+
+const u = {
+  ...defaultPalette(),
+  t:{value:0}, w:{value:1.6}, gain:{value:40}, STEPS:{value:96},
+  volC:{value:null}, volS:{value:null},
+  Rt:{value: new THREE.Matrix3()},
+  travel:{value:1},
+}
+const mat = new THREE.ShaderMaterial({
+  vertexShader: VS, fragmentShader: fs, uniforms: u,
+  glslVersion: THREE.GLSL3,
+})
+const sph = new THREE.Mesh(new THREE.SphereGeometry(1.001, 96, 48), mat)
+scene.add(sph)
+const ctl = new OrbitControls(cam, rnd.domElement)
+ctl.enableDamping = true
+ctl.autoRotate = true
+ctl.autoRotateSpeed = 0.4
+
+const S = {
+  ℓ: 5, n: 1, ω: 1.6, gain: 40, travel: true, STEPS: 96, N: 64,
+  αA: 0, βA: 0, αB: Math.PI/2, βB: 0,
+  auto: true, Δt: 3.0, s: 0,
+  rotate: true,
+}
+const axA = new THREE.Vector3(), axB = new THREE.Vector3()
+const setAx = (α, β, target)=>{
+  target.set(Math.sin(α)*Math.cos(β), Math.sin(α)*Math.sin(β), Math.cos(α))
+}
+
+// bake both Yₗ^ℓ and Yₗ^{-ℓ} for the current (ℓ, n).
+const rebake = ()=>{
+  if(u.volC.value) u.volC.value.dispose()
+  if(u.volS.value) u.volS.value.dispose()
+  const k = ALPHA[S.ℓ][S.n-1]
+  u.volC.value = bakeMode(S.ℓ,  S.ℓ, k, S.N)
+  u.volS.value = bakeMode(S.ℓ, -S.ℓ, k, S.N)
+}
+rebake()
+
+const sync = ()=>{
+  u.w.value = S.ω; u.gain.value = S.gain
+  u.travel.value = S.travel ? 1 : 0; u.STEPS.value = S.STEPS
+  setAx(S.αA, S.βA, axA); setAx(S.αB, S.βB, axB)
+}
+sync()
+
+const gui = new GUI({title:'whispering gallery · 3D'})
+gui.add(S,'ℓ', 2, 12, 1).onChange(()=>{ rebake(); sync() })
+gui.add(S,'n', 1, 3, 1).onChange(()=>{ rebake(); sync() })
+gui.add(S,'ω', 0, 6, 0.05).onChange(sync)
+gui.add(S,'travel').onChange(sync)
+gui.add(S,'gain', 1, 200, 1).onChange(sync)
+gui.add(S,'STEPS', 32, 256, 4).onChange(sync)
+gui.add(S,'N', 32, 128, 16).name('bake N').onChange(()=>{ rebake(); sync() })
+const a = gui.addFolder('â A')
+a.add(S,'αA', 0, Math.PI, 0.01).onChange(sync)
+a.add(S,'βA', 0, 2*Math.PI, 0.01).onChange(sync)
+const b = gui.addFolder('â B')
+b.add(S,'αB', 0, Math.PI, 0.01).onChange(sync)
+b.add(S,'βB', 0, 2*Math.PI, 0.01).onChange(sync)
+gui.add(S,'s', 0, 1, 0.001).listen().onChange(v=>{ S.s=v })
+gui.add(S,'auto').name('auto s(t)')
+gui.add(S,'Δt', 0.2, 10, 0.1).name('Δt / s')
+gui.add(S,'rotate').onChange(v=>ctl.autoRotate=v)
+
+const hud = document.getElementById('hud')
+
+// R : rotates standard +ẑ to ax. Its transpose = world→mode.
+const tmpAx = new THREE.Vector3()
+const zHat = new THREE.Vector3(0,0,1)
+const qq = new THREE.Quaternion()
+const M4 = new THREE.Matrix4()
+const Rm = new THREE.Matrix3()
+
+let last = performance.now(), ph = 0
+function loop(){
+  const now = performance.now()
+  const dt = (now - last) * 1e-3; last = now
+  u.t.value += dt
+  if(S.auto){
+    ph += dt / Math.max(S.Δt, 0.05)
+    const p = ph % 2
+    S.s = p < 1 ? p : 2 - p
+  }
+  tmpAx.copy(axA).lerp(axB, S.s).normalize()
+  qq.setFromUnitVectors(zHat, tmpAx)
+  M4.makeRotationFromQuaternion(qq)
+  Rm.setFromMatrix4(M4)          // rotates z → ax (mode → world)
+  u.Rt.value.copy(Rm).transpose()  // world → mode
+
+  ctl.update()
+  rnd.render(scene, cam)
+  hud.textContent =
+    `ℓ=${S.ℓ} n=${S.n} k=${ALPHA[S.ℓ][S.n-1].toFixed(3)} ω=${S.ω.toFixed(2)} ${S.travel?'→':'↔'}\n`+
+    `â=(${tmpAx.x.toFixed(2)},${tmpAx.y.toFixed(2)},${tmpAx.z.toFixed(2)})  s=${S.s.toFixed(3)}\n`+
+    `STEPS=${S.STEPS}  bake=${S.N}³`
+  requestAnimationFrame(loop)
+}
+loop()
+</script>
