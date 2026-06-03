@@ -1,0 +1,29 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>simulation · ∑</title>
+<style>
+  :root{color-scheme:dark}
+  html,body{margin:0;min-height:100%;background:#000;color:#9cf;font:13px/1.5 ui-monospace,monospace}
+  main{max-width:60ch;margin:6vh auto;padding:0 1.2rem}
+  h1{font-size:1rem;font-weight:400;color:#cfe;margin:0 0 2rem;letter-spacing:.05em}
+  ol{padding:0;list-style:none;counter-reset:d}
+  li{counter-increment:d;padding:.6rem 0;border-bottom:1px dashed #1a2230}
+  li::before{content:counter(d) ". ";color:#456}
+  a{color:#cfe;text-decoration:none;border-bottom:1px solid #2d3a4d}
+  a:hover{color:#fff;border-bottom-color:#cfe}
+  .k{color:#fc9}
+  .c{color:#678}
+  .tag{color:#9fc;font-size:11px}
+  footer{margin-top:3rem;color:#456}
+</style>
+<main>
+<h1>simulation · programmable scatterer / standing-wave demos</h1>
+<ol>
+  <li><a href="1/">topo-acoustic lattice</a> <span class=tag>· live</span><br><span class=c>2D Stribeck membrane, k_eff = t·μ(v_rel)/μ_s, ℤ₂ SSH dimerization (q₂=2), N=q₃=3 lock</span></li>
+  <li><a href="2/">the torus that wouldn't glue</a> <span class=tag>· storyboard</span><br><span class=c>why GR &amp; QM were incompatible read as one torus gluing — and the modular twist that dissolves it · hover-glossary</span></li>
+</ol>
+<footer>
+  <div><span class=k>inputs</span> · 2 anchors: H₀ (cosmological), v_EW = 246 GeV (particle)</div>
+  <div style="margin-top:.4rem"><span class=k>src</span> · <a href="https://github.com/nickjoven/simulation">github</a> · <span class=k>math</span> · <a href="https://github.com/nickjoven/harmonics">harmonics</a></div>
+</footer>
+</main>

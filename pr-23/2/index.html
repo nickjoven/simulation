@@ -1,0 +1,328 @@
+<!doctype html>
+<meta charset=utf-8>
+<title>GR · QM · the torus that wouldn't glue — storyboard · v0.1</title>
+<style>
+  :root{color-scheme:dark}
+  html,body{margin:0;background:#000;color:#9cf;font:13px/1.6 ui-monospace,monospace}
+  main{max-width:74ch;margin:5vh auto 12vh;padding:0 1.3rem}
+  h1{font-size:1.05rem;font-weight:400;color:#cfe;letter-spacing:.04em;margin:0 0 .3rem}
+  .sub{color:#678;margin:0 0 2.4rem}
+  /* storyboard frames */
+  .frame{display:grid;grid-template-columns:240px 1fr;gap:1rem;align-items:start;
+         margin:0 0 1.1rem;padding:14px;background:#050a10;border:1px solid #1a2230;border-radius:3px}
+  .frame .n{position:absolute;margin:-26px 0 0 -6px;color:#456;font-size:11px}
+  .frame figure{margin:0;position:relative}
+  .frame svg{display:block;width:100%;height:auto;background:#02060b;border:1px solid #11202e;border-radius:2px}
+  .cap{color:#9cf}
+  .cap h3{margin:.1rem 0 .5rem;color:#cfe;font-size:.95rem;font-weight:400}
+  .cap .t{color:#fc9}
+  .cap .ok{color:#9fc}
+  .cap small{color:#678}
+  @media(max-width:680px){.frame{grid-template-columns:1fr}}
+  /* hover glossary */
+  .g{color:#cfe;border-bottom:1px dotted #4a6a8a;cursor:help;position:relative;outline:none}
+  .g:hover,.g:focus{color:#fff;border-bottom-color:#cfe}
+  .g .tip{position:absolute;left:0;top:1.5em;z-index:9;width:30ch;
+          background:#0a1219;border:1px solid #2d3a4d;border-radius:3px;
+          padding:7px 9px;color:#9cf;font-size:11.5px;line-height:1.45;
+          box-shadow:0 6px 22px #000a;opacity:0;visibility:hidden;transition:opacity .12s}
+  .g .tip b{color:#fc9;font-weight:400}
+  .g:hover .tip,.g:focus .tip{opacity:1;visibility:visible}
+  .g .tip .who{color:#9fc}
+  /* thesaurus */
+  h2{font-size:.95rem;font-weight:400;color:#cfe;margin:2.6rem 0 .6rem;letter-spacing:.04em}
+  dl{margin:0;display:grid;grid-template-columns:max-content 1fr;gap:.2rem 1rem}
+  dt{color:#9fc}
+  dd{margin:0 0 .5rem;color:#9cf}
+  dd .who{color:#678}
+  .note{margin:2rem 0 0;padding:11px;border:1px dashed #2a3a2a;border-radius:3px;color:#9cb;background:#050b07}
+  footer{margin-top:2.4rem;color:#456}
+  a{color:#cfe;text-decoration:none;border-bottom:1px solid #2d3a4d}
+  a:hover{color:#fff}
+</style>
+<main>
+<h1>the torus that wouldn't glue</h1>
+<p class=sub>why general relativity and quantum mechanics famously refused to share a spacetime — read as <em>one wrong gluing of two circles</em>, and the one twist that fixes it. a storyboard. hover any <span class=g data-k="how-to-read">underlined term<span class=tip></span></span> for its definition.</p>
+
+<!-- ====================== FRAME 1 ====================== -->
+<div class=frame><span class=n>frame 1 · the object</span>
+  <figure><svg id=f1 viewBox="0 0 240 150"></svg></figure>
+  <div class=cap>
+    <h3>a torus is two circles and one number</h3>
+    Every <span class=g data-k="torus">torus<span class=tip></span></span> has an <b>a-cycle</b> and a <b>b-cycle</b>, and its entire shape is one complex number, the <span class=g data-k="tau">modular parameter τ<span class=tip></span></span>, living in the <span class=g data-k="Poincaré">upper half-plane<span class=tip></span></span>. Put the two theories on the two cycles:
+    <br><small>a-cycle → quantum phase / thermal time &nbsp;·&nbsp; b-cycle → geometry / gravity</small>
+  </div>
+</div>
+
+<!-- ====================== FRAME 2 ====================== -->
+<div class=frame><span class=n>frame 2 · the unquestioned assumption</span>
+  <figure><svg id=f2 viewBox="0 0 240 150"></svg></figure>
+  <div class=cap>
+    <h3>the rectangular gluing: τ = iβ</h3>
+    The default move is to make the torus <b>rectangular</b> — the <span class=g data-k="Matsubara">Matsubara<span class=tip></span></span> time circle of circumference <span class=g data-k="KMS">β = 1/kT<span class=tip></span></span> at a right angle to the geometry circle. QM on one side, GR on the other, meeting at 90°. Nobody questioned the right angle. <span class=t>Every famous incompatibility is hiding in it.</span>
+  </div>
+</div>
+
+<!-- ====================== FRAME 3 — BREAKDOWN ====================== -->
+<div class=frame><span class=n>frame 3 · push to the cusp — the shapes break</span>
+  <figure><svg id=f3 viewBox="0 0 240 196"></svg></figure>
+  <div class=cap>
+    <h3>at the <span class=g data-k="cusp">cusp<span class=tip></span></span> τ → i∞, four pathologies, one cause</h3>
+    Stretch the rectangle tall (β → ∞): a long, thin torus degenerates into a <em>fixed background with a lonely thermal circle</em>. Because the cycles never wind into each other:
+    <ul style="margin:.4rem 0;padding-left:1.1rem">
+      <li><span class=t>frozen time</span> — <span class=g data-k="Wheeler–DeWitt">Ĥ|ψ⟩ = 0<span class=tip></span></span>; geometry never turns the clock.</li>
+      <li><span class=t>UV ∞</span> — modes pile up unboundedly, <span class=g data-k="'t Hooft–Veltman">nonrenormalizable<span class=tip></span></span>.</li>
+      <li><span class=t>rigid background</span> — the shape is nailed; geometry isn't dynamical.</li>
+      <li><span class=t>no minimal cell</span> — the manifold shrinks toward zero, no <span class=g data-k="Planck">Planck floor<span class=tip></span></span>.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ====================== FRAME 4 — THE SHIFT ====================== -->
+<div class=frame><span class=n>frame 4 · the small shift</span>
+  <figure><svg id=f4 viewBox="0 0 240 150"></svg></figure>
+  <div class=cap>
+    <h3>turn on a real part: one twist</h3>
+    Shear the cell — give τ a real part, τ = θ + iβ. Geometrically a <span class=g data-k="Dehn">Dehn twist<span class=tip></span></span>; algebraically a single generator of the <span class=g data-k="SL2Z">modular group<span class=tip></span></span>,
+    <br><code style="color:#cfe">T = [[1,1],[0,1]], τ ↦ τ + 1</code>.
+    <br>One off-diagonal 1. The geometry cycle now <b>shears into</b> the time cycle.
+  </div>
+</div>
+
+<!-- ====================== FRAME 5 — FUNDAMENTAL DOMAIN ====================== -->
+<div class=frame><span class=n>frame 5 · where the twist lives</span>
+  <figure><svg id=f5 viewBox="0 0 240 184"></svg></figure>
+  <div class=cap>
+    <h3>the fundamental domain — and your seed (q₂, q₃)</h3>
+    All twisted copies are <span class=g data-k="SL2Z">SL(2,ℤ)<span class=tip></span></span>-equivalent; physics is the one tile <code style="color:#cfe">|τ| ≥ 1, |Re τ| ≤ ½</code>, cut by the <span class=g data-k="Farey">Farey<span class=tip></span></span> tessellation. Its two corners are the orbifold points
+    <span class=ok>i</span> (order <b>2</b> — the <span class=g data-k="Klein">Klein involution<span class=tip></span></span>) and <span class=ok>ρ = e^{iπ/3}</span> (order <b>3</b> — the triangle). That is <b>(q₂, q₃) = (2, 3)</b>: <span class=g data-k="PSL2Z">PSL(2,ℤ) ≅ ℤ/2 ∗ ℤ/3<span class=tip></span></span>, the framework's gauge seed, and the floor <code>|τ|≥1</code> is a built-in minimal length.
+  </div>
+</div>
+
+<!-- ====================== FRAME 6 — DISSOLVE ====================== -->
+<div class=frame><span class=n>frame 6 · the four pathologies dissolve</span>
+  <figure><svg id=f6 viewBox="0 0 240 196"></svg></figure>
+  <div class=cap>
+    <h3>same four behaviors, now resolved by the twist</h3>
+    <ul style="margin:.4rem 0;padding-left:1.1rem">
+      <li><span class=ok>time flows</span> — the twist <em>is</em> the clock: <span class=g data-k="Connes–Rovelli">thermal/modular time<span class=tip></span></span> (<span class=g data-k="Tomita–Takesaki">Tomita–Takesaki<span class=tip></span></span> flow).</li>
+      <li><span class=ok>UV finite</span> — <span class=g data-k="S-transform">S : τ ↦ −1/τ<span class=tip></span></span> glues UV↔IR (<span class=g data-k="Cardy">Cardy<span class=tip></span></span>); integrate the tile, not the strip.</li>
+      <li><span class=ok>background gauge</span> — τ is a dynamical modulus; physics = its <span class=g data-k="diffeo">SL(2,ℤ) orbit<span class=tip></span></span>.</li>
+      <li><span class=ok>minimal cell</span> — the arc <code>|τ|=1</code> is a hard floor; no sub-Planck torus.</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ====================== FRAME 7 — REAL INSTANCE ====================== -->
+<div class=frame><span class=n>frame 7 · not just a metaphor</span>
+  <figure><svg id=f7 viewBox="0 0 240 150"></svg></figure>
+  <div class=cap>
+    <h3>the Farey tail: GR and QM as two phases of one torus</h3>
+    In <span class=g data-k="AdSCFT">AdS₃ / CFT₂<span class=tip></span></span>, <em>thermal AdS</em> (a quantum gas, no horizon) and the <span class=g data-k="BTZ">BTZ black hole<span class=tip></span></span> (pure geometry) are the <b>same boundary torus</b>, swapped by <span class=g data-k="S-transform">S<span class=tip></span></span> and parted by the <span class=g data-k="Hawking–Page">Hawking–Page<span class=tip></span></span> line. The full partition function is a <span class=g data-k="DMMV">Farey sum over SL(2,ℤ)<span class=tip></span></span> shapes. Computed, not poetic — and it is your Farey trap.
+  </div>
+</div>
+
+<!-- ====================== THESAURUS ====================== -->
+<h2>thesaurus — terms, hashed by attribution</h2>
+<dl id=glossary></dl>
+
+<p class=note><b style="color:#9fc">honest accounting.</b> The established mathematics here is real: PSL(2,ℤ) ≅ ℤ/2 ∗ ℤ/3 with elliptic points at i and ρ; modular invariance ⇒ string one-loop UV-finiteness; S as temperature-inversion duality; Wheeler–DeWitt frozen time; Connes–Rovelli thermal time; the AdS₃ Farey tail. The <em>synthesis</em> — that this one torus picture <em>dissolves</em> the GR/QM incompatibility — is an interpretive model with real scaffolding, <b>not</b> a claim that quantum gravity is solved. Read it as a v0.1 concept piece.</p>
+
+<footer>
+  <a href="../">← simulation index</a> &nbsp;·&nbsp; <a href="../1/">demo 1 · topo-acoustic lattice</a> &nbsp;·&nbsp; <a href="https://github.com/nickjoven/harmonics">harmonics</a>
+</footer>
+</main>
+
+<script type=module>
+// ========================================================================
+// Single source of truth: every named concept, keyed by its attribution.
+// Drives both the inline hover-tips and the thesaurus <dl> at the foot.
+// who = the names that "hash" the idea; what = one-line gloss.
+// ========================================================================
+const GLOSS = {
+  'how-to-read': { term:'hover glossary', who:'', what:'Underlined terms reveal a definition on hover or keyboard focus. Every entry is also listed in the thesaurus below.' },
+  'torus':   { term:'torus T² = S¹×S¹', who:'', what:'A doughnut: the product of two circles (the a- and b-cycles). Its shape, up to scaling, is a single modular parameter τ.' },
+  'tau':     { term:'modular parameter τ', who:'', what:'The complex number whose real part is the shear of the b-cycle and whose imaginary part is its height. The torus is ℂ /(ℤ + τℤ).' },
+  'Poincaré':{ term:'upper half-plane ℍ', who:'Poincaré', what:'The hyperbolic plane {Im τ > 0} where τ lives and on which SL(2,ℤ) acts by isometries (Möbius maps).' },
+  'Matsubara':{ term:'Matsubara circle', who:'Matsubara', what:'Finite-temperature QM = a theory on a Euclidean-time circle of circumference β = 1/kT. Quantum statistics becomes a geometry.' },
+  'KMS':     { term:'KMS / β = 1/kT', who:'Kubo–Martin–Schwinger', what:'The analyticity-and-periodicity condition that defines a thermal-equilibrium state; β is the period of imaginary time.' },
+  'cusp':    { term:'cusp (τ → i∞)', who:'', what:'A rational boundary point of ℍ where the torus degenerates — here the long-thin limit: a fixed background with one decoupled thermal circle.' },
+  'Wheeler–DeWitt':{ term:'Ĥ|ψ⟩ = 0', who:'Wheeler–DeWitt', what:'The canonical quantum-gravity constraint. With no external time, the wavefunction of the universe does not evolve — the "problem of time."' },
+  "'t Hooft–Veltman":{ term:'nonrenormalizable gravity', who:"'t Hooft–Veltman (1974)", what:'Perturbatively quantized gravity needs infinitely many counterterms — its coupling has negative mass dimension, so UV divergences never close.' },
+  'Planck':  { term:'Planck scale', who:'Planck', what:'≈10⁻³⁵ m, where quantum fluctuations of geometry become order one and a smooth manifold should stop making sense.' },
+  'Dehn':    { term:'Dehn twist', who:'Dehn', what:'Cut a torus along a cycle, rotate one edge by a full turn, reglue. On shape space this realizes T : τ ↦ τ + 1.' },
+  'SL2Z':    { term:'SL(2,ℤ) modular group', who:'', what:'Integer 2×2 matrices of determinant 1 acting on τ by (aτ+b)/(cτ+d). The mapping-class group of the torus; generated by S and T.' },
+  'Farey':   { term:'Farey / Stern–Brocot', who:'Farey · Stern–Brocot', what:'The mediant tree p/q ⊕ r/s = (p+r)/(q+s). Its fractions are the cusps; SL(2,ℤ) tiles ℍ along them.' },
+  'Klein':   { term:'Klein involution', who:'Klein', what:'The order-2 symmetry S²=−I, fixed at τ = i — an orientation-reversing / antipodal twist; the ℤ₂ (q₂=2) of the seed.' },
+  'PSL2Z':   { term:'PSL(2,ℤ) ≅ ℤ/2 ∗ ℤ/3', who:'', what:'The modular group mod ±I is the free product of a 2-fold and a 3-fold rotation — torsion exactly 2 and 3, i.e. (q₂,q₃)=(2,3).' },
+  'Connes–Rovelli':{ term:'thermal time hypothesis', who:'Connes–Rovelli (1994)', what:'Physical time is not presupposed; it is the modular flow of the system’s thermal (KMS) state. Time emerges from the state.' },
+  'Tomita–Takesaki':{ term:'modular flow', who:'Tomita–Takesaki', what:'Any von Neumann algebra with a cyclic state carries a canonical one-parameter automorphism group — an intrinsic, state-given "time."' },
+  'S-transform':{ term:'S : τ ↦ −1/τ', who:'', what:'The modular generator that swaps the two cycles — hence swaps high/low temperature and UV/IR. Order 4 in SL(2,ℤ), fixed at τ=i.' },
+  'Cardy':   { term:'Cardy formula', who:'Cardy', what:'Uses S-invariance to fix the high-energy density of states from the low-energy data — UV computed from IR. Modular invariance ⇒ finiteness.' },
+  'diffeo':  { term:'diffeomorphism / large gauge', who:'', what:'Once τ is dynamical, only its SL(2,ℤ) orbit is physical — orbit-invariance is the torus version of background independence.' },
+  'AdSCFT':  { term:'AdS₃ / CFT₂', who:'Maldacena', what:'A 3D gravity theory equals a 2D conformal field theory on the boundary torus — a worked example where geometry ↔ quantum data.' },
+  'BTZ':     { term:'BTZ black hole', who:'Bañados–Teitelboim–Zanelli', what:'The 2+1-dimensional anti-de Sitter black hole — the "geometry/GR" phase of the boundary torus.' },
+  'Hawking–Page':{ term:'Hawking–Page transition', who:'Hawking–Page', what:'The phase boundary between thermal AdS (gas) and the black hole (geometry) — the GR↔QM line on the torus.' },
+  'DMMV':    { term:'black-hole Farey tail', who:'Dijkgraaf–Maldacena–Moore–Verlinde · Maldacena–Strominger', what:'Writes the AdS₃ partition function as a Farey/SL(2,ℤ) sum over torus shapes; thermal AdS and BTZ are S-related terms of one sum.' },
+}
+
+// ---- inline tips --------------------------------------------------------
+for(const span of document.querySelectorAll('.g')){
+  const k = span.dataset.k, e = GLOSS[k]
+  const tip = span.querySelector('.tip')
+  if(!e || !tip) continue
+  tip.innerHTML = (e.who ? `<span class=who>${e.who}</span> · ` : '') + `<b>${e.term}</b> — ${e.what}`
+  span.setAttribute('tabindex','0'); span.setAttribute('role','note')
+}
+// ---- thesaurus (skip the meta how-to-read entry) ------------------------
+const dl = document.getElementById('glossary')
+for(const [k,e] of Object.entries(GLOSS)){
+  if(k === 'how-to-read') continue
+  const dt = document.createElement('dt'); dt.textContent = e.term
+  const dd = document.createElement('dd')
+  dd.innerHTML = (e.who ? `<span class=who>${e.who}</span> — ` : '') + e.what
+  dl.append(dt, dd)
+}
+
+// ========================================================================
+// Static storyboard figures (drawn once — no interaction, by design).
+// τ-plane helper: map (Re,Im) → svg with chosen scale/origin, Im upward.
+// ========================================================================
+const SVGNS = 'http://www.w3.org/2000/svg'
+const C = { axis:'#1c2a3a', ink:'#9cf', a:'#9fc', b:'#cfe', warn:'#fc9', dim:'#456', fill:'#0c1622' }
+function svg(id){ return document.getElementById(id) }
+function add(parent, tag, attrs, text){
+  const n = document.createElementNS(SVGNS, tag)
+  for(const k in attrs) n.setAttribute(k, attrs[k])
+  if(text != null) n.textContent = text
+  parent.appendChild(n); return n
+}
+const L = (p,x1,y1,x2,y2,c,w=1,d) => add(p,'line',{x1,y1,x2,y2,stroke:c,'stroke-width':w,...(d?{'stroke-dasharray':d}:{})})
+const T = (p,x,y,s,c,anc='start',sz=10) => add(p,'text',{x,y,fill:c,'font-size':sz,'font-family':'ui-monospace, monospace','text-anchor':anc},s)
+const DOT = (p,x,y,r,c) => add(p,'circle',{cx:x,cy:y,r,fill:c})
+
+// lattice cell: vectors (1,0) and (rx,ry) from origin ox,oy (screen coords, y down)
+function cell(p, ox, oy, ux, vx, vy, col){
+  const pts = `${ox},${oy} ${ox+ux},${oy} ${ox+ux+vx},${oy-vy} ${ox+vx},${oy-vy}`
+  add(p,'polygon',{points:pts,fill:C.fill,stroke:col,'stroke-width':1.4})
+  // a-cycle (base) and b-cycle (side), arrowed
+  L(p, ox,oy, ox+ux,oy, C.a, 2)
+  L(p, ox,oy, ox+vx,oy-vy, C.b, 2)
+  DOT(p, ox+ux, oy, 2.4, C.a); DOT(p, ox+vx, oy-vy, 2.4, C.b)
+}
+function donut(p, cx, cy, R, r, col){
+  add(p,'ellipse',{cx,cy,rx:R,ry:R*0.5,fill:'none',stroke:col,'stroke-width':1.4})
+  add(p,'ellipse',{cx,cy,rx:r,ry:r*0.5,fill:'none',stroke:col,'stroke-width':1})
+}
+
+// ---- frame 1 : the object ----
+;(()=>{ const p = svg('f1')
+  cell(p, 40,108, 120, 34, 70, '#3a5a7a')
+  T(p, 96,124,'a-cycle  (1)', C.a,'middle')
+  add(p,'text',{x:18,y:66,fill:C.b,'font-size':10,'font-family':'ui-monospace'},'b · τ')
+  donut(p, 196,60, 26, 10, '#3a5a7a')
+  T(p, 196,104,'T²', C.dim,'middle')
+})()
+
+// ---- frame 2 : rectangular ----
+;(()=>{ const p = svg('f2')
+  cell(p, 70,112, 96, 0, 78, C.warn)   // vx=0 → right angle
+  // right-angle marker
+  add(p,'path',{d:`M70,96 L86,96 L86,112`,fill:'none',stroke:C.warn,'stroke-width':1})
+  T(p, 118,128,'QM · β', C.a,'middle'); T(p, 60,66,'GR', C.b,'end')
+  add(p,'text',{x:120,y:20,fill:C.dim,'font-size':10,'font-family':'ui-monospace','text-anchor':'middle'},'τ = iβ   (90°)')
+})()
+
+// ---- frame 3 : breakdown (tall cusp + 4 failure glyphs) ----
+;(()=>{ const p = svg('f3')
+  // degenerating tall cell
+  add(p,'polygon',{points:'24,150 60,150 60,30 24,30',fill:C.fill,stroke:C.warn,'stroke-width':1.2,'stroke-dasharray':'3 3'})
+  L(p,24,150,60,150,C.a,2)
+  add(p,'text',{x:42,y:22,fill:C.warn,'font-size':10,'font-family':'ui-monospace','text-anchor':'middle'},'→ i∞')
+  T(p,42,166,'cusp', C.dim,'middle')
+  // four glyphs on the right
+  const gx=92, gy=[28,72,116,160], gw=130
+  // frozen clock
+  DOT(p,gx+12,gy[0],10,'none'); add(p,'circle',{cx:gx+12,cy:gy[0],r:10,fill:'none',stroke:C.warn}); add(p,'text',{x:gx+12,y:gy[0]+4,fill:C.warn,'font-size':11,'text-anchor':'middle','font-family':'ui-monospace'},'×')
+  T(p,gx+30,gy[0]+4,'frozen time', C.ink)
+  // UV ladder
+  for(let i=0;i<6;i++) L(p,gx+4,gy[1]+8-i*3.0,gx+22,gy[1]+8-i*3.0,C.warn,1)
+  T(p,gx+30,gy[1]+4,'UV → ∞', C.ink)
+  // pinned shape
+  add(p,'polygon',{points:`${gx+2},${gy[2]+8} ${gx+22},${gy[2]+8} ${gx+22},${gy[2]-8} ${gx+2},${gy[2]-8}`,fill:'none',stroke:C.warn}); DOT(p,gx+12,gy[2],2.6,C.warn); L(p,gx+12,gy[2],gx+12,gy[2]-12,C.warn,1)
+  T(p,gx+30,gy[2]+4,'rigid background', C.ink)
+  // shrinking cell
+  add(p,'rect',{x:gx+2,y:gy[3]-8,width:18,height:16,fill:'none',stroke:C.warn}); add(p,'rect',{x:gx+6,y:gy[3]-4,width:10,height:9,fill:'none',stroke:C.warn,opacity:.7}); DOT(p,gx+11,gy[3]+0.5,1.5,C.warn)
+  T(p,gx+30,gy[3]+4,'no minimal cell', C.ink)
+})()
+
+// ---- frame 4 : the twist ----
+;(()=>{ const p = svg('f4')
+  // before (faint rectangle)
+  add(p,'polygon',{points:'40,112 120,112 120,44 40,44',fill:'none',stroke:'#2a3a4a','stroke-dasharray':'3 3'})
+  // after (sheared)
+  cell(p, 40,112, 80, 40, 68, C.b)
+  // twist arrow
+  add(p,'path',{d:'M120,40 q26,-6 40,8',fill:'none',stroke:C.warn,'stroke-width':1.4,'marker-end':'url(#ah)'} )
+  const defs = add(p,'defs',{}); const m = add(defs,'marker',{id:'ah',markerWidth:7,markerHeight:7,refX:5,refY:3,orient:'auto'}); add(m,'path',{d:'M0,0 L6,3 L0,6 Z',fill:C.warn})
+  add(p,'text',{x:170,y:60,fill:C.warn,'font-size':10,'font-family':'ui-monospace','text-anchor':'middle'},'T'); add(p,'text',{x:170,y:74,fill:C.dim,'font-size':9,'font-family':'ui-monospace','text-anchor':'middle'},'τ→τ+1')
+  add(p,'text',{x:90,y:136,fill:C.dim,'font-size':9.5,'font-family':'ui-monospace','text-anchor':'middle'},'shear = Re τ')
+})()
+
+// ---- frame 5 : fundamental domain + Farey arcs ----
+;(()=>{ const p = svg('f5')
+  // τ-plane frame: Re ∈ [-1.5,1.5] → x ∈ [20,220]; Im ∈ [0,2.2] → y ∈ [170,14]
+  const X = re => 120 + re*((220-20)/3)
+  const Y = im => 170 - im*((170-14)/2.2)
+  // real axis
+  L(p,16,Y(0),224,Y(0),C.axis,1)
+  // Farey semicircles on the real axis (between consecutive integers/halves)
+  const arc=(x0,x1,col,w)=>{ const r=(X(x1)-X(x0))/2, cx=(X(x0)+X(x1))/2; add(p,'path',{d:`M${X(x0)},${Y(0)} A${r},${r} 0 0 1 ${X(x1)},${Y(0)}`,fill:'none',stroke:col,'stroke-width':w}) }
+  ;[[-1,0],[0,1]].forEach(([a,b])=>arc(a,b,'#1d3346',1))
+  ;[[-1,-0.5],[-0.5,0],[0,0.5],[0.5,1]].forEach(([a,b])=>arc(a,b,'#152838',1))
+  // vertical walls Re=±1/2 and the |τ|=1 arc bounding the domain
+  L(p,X(-0.5),Y(0),X(-0.5),Y(2.2),'#2d3a4d',1,'3 3')
+  L(p,X(0.5),Y(0),X(0.5),Y(2.2),'#2d3a4d',1,'3 3')
+  // |τ|=1 arc from ρ' to ρ
+  const r1 = X(1)-X(0)
+  add(p,'path',{d:`M${X(-0.5)},${Y(Math.sqrt(3)/2)} A${r1},${r1} 0 0 1 ${X(0.5)},${Y(Math.sqrt(3)/2)}`,fill:'none',stroke:C.b,'stroke-width':1.6})
+  // domain fill (rough): polygon walls + arc top region
+  add(p,'path',{d:`M${X(-0.5)},${Y(2.2)} L${X(-0.5)},${Y(Math.sqrt(3)/2)} A${r1},${r1} 0 0 1 ${X(0.5)},${Y(Math.sqrt(3)/2)} L${X(0.5)},${Y(2.2)} Z`,fill:'rgba(120,180,240,.06)',stroke:'none'})
+  // elliptic points
+  DOT(p,X(0),Y(1),3.2,C.a); T(p,X(0)+6,Y(1)+3,'i · q₂=2', C.a)
+  DOT(p,X(0.5),Y(Math.sqrt(3)/2),3.2,C.warn); T(p,X(0.5)+5,Y(Math.sqrt(3)/2)+2,'ρ · q₃=3', C.warn)
+  // cusp
+  T(p,X(0),Y(2.2)+2,'cusp  i∞', C.dim,'middle')
+})()
+
+// ---- frame 6 : dissolve (4 resolved glyphs) ----
+;(()=>{ const p = svg('f6')
+  const gx=14, gy=[28,72,116,160]
+  // ticking clock with hand + arc
+  add(p,'circle',{cx:gx+12,cy:gy[0],r:10,fill:'none',stroke:C.a}); L(p,gx+12,gy[0],gx+12,gy[0]-7,C.a,1.4); L(p,gx+12,gy[0],gx+18,gy[0],C.a,1.4)
+  add(p,'path',{d:`M${gx+22},${gy[0]-6} q8,4 2,12`,fill:'none',stroke:C.a,'stroke-width':1})
+  T(p,gx+34,gy[0]+4,'time = the twist', C.ink)
+  // S-loop UV↔IR
+  add(p,'path',{d:`M${gx+4},${gy[1]+7} C${gx-2},${gy[1]-10} ${gx+22},${gy[1]-10} ${gx+20},${gy[1]+6}`,fill:'none',stroke:C.a,'stroke-width':1.2})
+  T(p,gx+8,gy[1]-6,'S', C.a)
+  T(p,gx+34,gy[1]+4,'UV ↔ IR finite', C.ink)
+  // floating shape with orbit dots
+  add(p,'polygon',{points:`${gx+4},${gy[2]+7} ${gx+20},${gy[2]+7} ${gx+24},${gy[2]-7} ${gx+8},${gy[2]-7}`,fill:'none',stroke:C.a}); DOT(p,gx-2,gy[2]+9,1.4,C.dim); DOT(p,gx+28,gy[2]-9,1.4,C.dim)
+  T(p,gx+34,gy[2]+4,'background = gauge', C.ink)
+  // minimal cell floor
+  add(p,'rect',{x:gx+4,y:gy[3]-7,width:18,height:14,fill:'none',stroke:C.a}); L(p,gx+0,gy[3]+9,gx+26,gy[3]+9,C.b,2)
+  T(p,gx+34,gy[3]+4,'minimal cell  |τ|≥1', C.ink)
+})()
+
+// ---- frame 7 : Farey tail (two phases + S) ----
+;(()=>{ const p = svg('f7')
+  donut(p, 64,62, 26,10, C.a); T(p,64,104,'thermal AdS', C.a,'middle'); T(p,64,118,'(QM gas)', C.dim,'middle')
+  donut(p, 176,62, 26,10, C.b); add(p,'circle',{cx:176,cy:62,r:5,fill:'#000',stroke:C.b}); T(p,176,104,'BTZ', C.b,'middle'); T(p,176,118,'(GR geometry)', C.dim,'middle')
+  add(p,'path',{d:'M96,52 q24,-16 50,0',fill:'none',stroke:C.warn,'stroke-width':1.4,'marker-end':'url(#ah7)'})
+  const defs=add(p,'defs',{}); const m=add(defs,'marker',{id:'ah7',markerWidth:7,markerHeight:7,refX:5,refY:3,orient:'auto'}); add(m,'path',{d:'M0,0 L6,3 L0,6 Z',fill:C.warn})
+  T(p,120,30,'S : τ ↦ −1/τ', C.warn,'middle')
+  // small farey arcs baseline
+  const bx=20,by=138; L(p,bx,by,bx+200,by,C.axis,1)
+  ;[[0,100],[100,200],[0,50],[50,100],[100,150],[150,200]].forEach(([a,b])=>{const r=(b-a)/2;add(p,'path',{d:`M${bx+a},${by} A${r},${r} 0 0 1 ${bx+b},${by}`,fill:'none',stroke:'#16293a','stroke-width':1})})
+})()
+</script>
